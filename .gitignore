@@ -36,3 +36,9 @@ out/
 .ruff_cache/
 coverage/
 
+.env
+*.env
+backend/.env
+backend/.env.*
+!/.env.example
+!/backend/.env.example

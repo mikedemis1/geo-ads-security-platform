@@ -1,0 +1,9 @@
+import os
+
+JWT_ISSUER = os.getenv("JWT_ISSUER", "geo-ads")
+JWT_AUDIENCE = os.getenv("JWT_AUDIENCE", "geo-ads-ui")
+JWT_SECRET = os.getenv("JWT_SECRET", "CHANGE_ME_DEV_ONLY")
+JWT_ALG = "HS256"
+
+ADMIN_TOKEN_SECRET = os.getenv("ADMIN_TOKEN_SECRET", "CHANGE_ME_DEV_ONLY")
+JWT_DEFAULT_TTL_SECONDS = int(os.getenv("JWT_DEFAULT_TTL_SECONDS", "3600"))

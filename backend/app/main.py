@@ -2,7 +2,7 @@
 
 import os
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.routing import WebSocketRoute
@@ -22,13 +22,16 @@ from app.websockets.websockets import router as websocket_router, ws_manager
 from app.models.placement_models import AdPlacement
 from app.services.placement_service import PlacementService
 
+# Security (Milestone v1)
+from app.security.deps import require_scope
+from app.security.auth_routes import router as auth_router
+
 app = FastAPI(title="Geo-Ads Backend")
 
 
 @app.api_route("/health", methods=["GET", "HEAD"])
 def health():
     return {"status": "ok"}
-
 
 
 @app.get("/debug/ws_routes")
@@ -53,8 +56,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Register WS routes
+# Register WS + Auth routes
 app.include_router(websocket_router)
+app.include_router(auth_router)
 
 
 @app.get("/")
@@ -65,12 +69,20 @@ def root():
 # -----------------------------
 #  ΔΙΑΦΗΜΙΣΕΙΣ (HTTP API)
 # -----------------------------
-@app.get("/advertisements", response_model=list[Advertisement])
+@app.get(
+    "/advertisements",
+    response_model=list[Advertisement],
+    dependencies=[Depends(require_scope(["ads:read"]))],
+)
 def list_advertisements():
     return AdvertisementService.get_all()
 
 
-@app.get("/advertisements/zone/{zone_id}", response_model=list[Advertisement])
+@app.get(
+    "/advertisements/zone/{zone_id}",
+    response_model=list[Advertisement],
+    dependencies=[Depends(require_scope(["ads:read"]))],
+)
 def list_advertisements_by_zone(zone_id: str):
     return AdvertisementService.get_by_zone(zone_id)
 
@@ -118,7 +130,12 @@ def get_multiindex_keys(
     return index.build_keys(ad_category=ad_category, time_window=time_window)
 
 
-@app.get("/layout/recommendation/screen", response_model=ScreenRecommendation)
+# Recommendation endpoints are sensitive (they influence placement decisions)
+@app.get(
+    "/layout/recommendation/screen",
+    response_model=ScreenRecommendation,
+    dependencies=[Depends(require_scope(["recommendation:read"]))],
+)
 def recommend_screen_endpoint(
     x: float = Query(...),
     y: float = Query(...),
@@ -154,7 +171,11 @@ def recommend_screen_endpoint(
     )
 
 
-@app.get("/recommendation/advertisements/{ad_id}/screen", response_model=ScreenRecommendation)
+@app.get(
+    "/recommendation/advertisements/{ad_id}/screen",
+    response_model=ScreenRecommendation,
+    dependencies=[Depends(require_scope(["recommendation:read"]))],
+)
 def recommend_screen_for_ad(
     ad_id: int,
     x: float = Query(...),
@@ -197,17 +218,29 @@ def recommend_screen_for_ad(
 # -----------------------------
 #  PLACEMENTS
 # -----------------------------
-@app.get("/placements", response_model=list[AdPlacement])
+@app.get(
+    "/placements",
+    response_model=list[AdPlacement],
+    dependencies=[Depends(require_scope(["placements:read"]))],
+)
 def list_placements():
     return PlacementService.list_all()
 
 
-@app.get("/placements/screen/{screen_id}", response_model=list[AdPlacement])
+@app.get(
+    "/placements/screen/{screen_id}",
+    response_model=list[AdPlacement],
+    dependencies=[Depends(require_scope(["placements:read"]))],
+)
 def list_placements_by_screen(screen_id: str):
     return PlacementService.list_by_screen(screen_id)
 
 
-@app.post("/placements/recommend_and_assign/advertisements/{ad_id}", response_model=AdPlacement)
+@app.post(
+    "/placements/recommend_and_assign/advertisements/{ad_id}",
+    response_model=AdPlacement,
+    dependencies=[Depends(require_scope(["placements:write"]))],
+)
 async def recommend_and_assign_ad_for_screen(
     ad_id: int,
     x: float = Query(...),

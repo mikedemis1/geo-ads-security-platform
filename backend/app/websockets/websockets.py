@@ -3,7 +3,7 @@
 import asyncio
 import json
 import hashlib
-from typing import Optional, Set, Tuple
+from typing import Optional, Set
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from fastapi.encoders import jsonable_encoder
@@ -11,6 +11,9 @@ from fastapi.encoders import jsonable_encoder
 from app.services.advertisement_service import AdvertisementService
 from app.services.placement_service import PlacementService
 from app.services.layout_service import get_screen_index
+
+# Security (Milestone v1)
+from app.security.jwt_service import decode_and_verify, require_scopes, AuthError
 
 router = APIRouter()
 
@@ -20,12 +23,42 @@ def _hash_payload(obj) -> str:
     return hashlib.sha256(raw).hexdigest()
 
 
+async def _ws_require_scope(ws: WebSocket, scopes: list[str]) -> Optional[dict]:
+    """
+    Enforce JWT auth for WebSocket.
+    We accept and immediately close with a WS close code to make proofs deterministic.
+    """
+    token = ws.query_params.get("token")
+    if not token:
+        await ws.accept()
+        print(f"[SEC][WS] 4401 missing token path={ws.url.path}")
+        await ws.close(code=4401)
+        return None
+
+    try:
+        payload = decode_and_verify(token)
+        require_scopes(payload, scopes)
+        return payload
+    except AuthError as e:
+        code = 4403 if e.status_code == 403 else 4401
+        await ws.accept()
+        print(f"[SEC][WS] {code} auth fail path={ws.url.path} detail={e.detail}")
+        await ws.close(code=code)
+        return None
+    except Exception as e:
+        await ws.accept()
+        print(f"[SEC][WS] 4401 unexpected auth error path={ws.url.path} err={e}")
+        await ws.close(code=4401)
+        return None
+
+
+
 class WSManager:
     def __init__(self) -> None:
         self.placements_clients: Set[WebSocket] = set()
 
     async def register_placements(self, ws: WebSocket) -> None:
-        await ws.accept()
+        # IMPORTANT: ws.accept() happens in the route AFTER auth
         self.placements_clients.add(ws)
         print(f"[WS] placements client connected ({len(self.placements_clients)})")
 
@@ -56,7 +89,14 @@ ws_manager = WSManager()
 
 @router.websocket("/ws/ads")
 async def websocket_ads(ws: WebSocket):
+    # Auth BEFORE accept
+    auth = await _ws_require_scope(ws, ["ads:read"])
+    if auth is None:
+        return
+
     await ws.accept()
+    print(f"[WS] ads client connected sub={auth.get('sub')}")
+
     last_hash = None
     try:
         while True:
@@ -71,22 +111,41 @@ async def websocket_ads(ws: WebSocket):
             await asyncio.sleep(2)
     except WebSocketDisconnect:
         return
+    finally:
+        print("[WS] ads client disconnected")
 
 
 @router.websocket("/ws/placements")
 async def websocket_placements(ws: WebSocket):
+    # Auth BEFORE accept
+    auth = await _ws_require_scope(ws, ["placements:read"])
+    if auth is None:
+        return
+
+    await ws.accept()
+    print(f"[WS] placements client connected sub={auth.get('sub')}")
+
     await ws_manager.register_placements(ws)
     try:
-        # κρατάμε open + πιάνουμε disconnect σωστά
+        # keep open + detect disconnect
         while True:
             await ws.receive()
     except WebSocketDisconnect:
         ws_manager.unregister_placements(ws)
+    finally:
+        print("[WS] placements client disconnected")
 
 
 @router.websocket("/ws/recommendation")
 async def websocket_recommendation(ws: WebSocket):
+    # Auth BEFORE accept
+    auth = await _ws_require_scope(ws, ["recommendation:read"])
+    if auth is None:
+        return
+
     await ws.accept()
+    print(f"[WS] recommendation client connected sub={auth.get('sub')}")
+
     index = get_screen_index()
 
     try:
@@ -154,3 +213,5 @@ async def websocket_recommendation(ws: WebSocket):
 
     except WebSocketDisconnect:
         return
+    finally:
+        print("[WS] recommendation client disconnected")
