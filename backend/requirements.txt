@@ -5,3 +5,7 @@ psycopg2-binary
 python-dotenv
 pydantic
 httpx
+PyJWT
+rtree
+scipy
+slowapi

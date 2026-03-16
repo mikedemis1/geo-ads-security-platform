@@ -2,7 +2,7 @@ version: "3.9"
 
 services:
   db:
-    image: postgres:16
+    image: postgis/postgis:16-3.4
     container_name: geo_ads_db
     restart: unless-stopped
     environment:
@@ -10,10 +10,16 @@ services:
       POSTGRES_PASSWORD: geo_ads_password
       POSTGRES_DB: geo_ads
     ports:
-      - "5432:5432"
+      - "5433:5432"
     volumes:
       - geo_ads_db_data:/var/lib/postgresql/data
       - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U geo_ads_user -d geo_ads"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
 volumes:
   geo_ads_db_data:

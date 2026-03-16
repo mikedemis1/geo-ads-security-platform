@@ -1,0 +1,253 @@
+/* ================================================================
+   GEO-ADS  ·  Login Page — Arena Entry
+   ================================================================ */
+
+.login-root {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  font-family: 'Barlow', system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+
+  /* Stadium grid + amber glow atmosphere */
+  background-color: #020810;
+  background-image:
+    radial-gradient(circle at 50% 50%, rgba(245, 159, 0, 0.055) 0%, transparent 55%),
+    linear-gradient(rgba(245, 159, 0, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245, 159, 0, 0.028) 1px, transparent 1px);
+  background-size: 100% 100%, 48px 48px, 48px 48px;
+}
+
+/* Scanning sweep line */
+@keyframes sweep {
+  0%   { top: -2px; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 0.6; }
+  100% { top: 100vh; opacity: 0; }
+}
+
+.login-root::before {
+  content: '';
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: -2px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent 5%, rgba(245, 159, 0, 0.5) 50%, transparent 95%);
+  animation: sweep 5s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* Corner accents */
+.login-root::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 15% 15%, rgba(245, 159, 0, 0.04) 0%, transparent 40%),
+    radial-gradient(ellipse at 85% 85%, rgba(34, 211, 238, 0.03) 0%, transparent 40%);
+  pointer-events: none;
+}
+
+/* ── Card ── */
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(5, 10, 20, 0.94);
+  border: 1px solid rgba(245, 159, 0, 0.22);
+  border-radius: 12px;
+  padding: 46px 40px 38px;
+  box-shadow:
+    0 0 0 1px rgba(245, 159, 0, 0.05),
+    0 28px 72px rgba(0, 0, 0, 0.85),
+    0 0 90px rgba(245, 159, 0, 0.07);
+  backdrop-filter: blur(24px);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+/* Top glow line */
+.login-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 5%, rgba(245, 159, 0, 0.6) 50%, transparent 95%);
+}
+
+/* Subtle inner corner marks */
+.login-card::after {
+  content: '';
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(245, 159, 0, 0.05);
+  border-radius: 8px;
+  pointer-events: none;
+}
+
+/* ── Logo ── */
+.login-logo {
+  text-align: center;
+  margin-bottom: 38px;
+}
+
+.login-logo-mark {
+  width: 54px;
+  height: 54px;
+  border-radius: 10px;
+  background: #F59F00;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 18px;
+  box-shadow:
+    0 0 0 1px rgba(245, 159, 0, 0.3),
+    0 6px 28px rgba(245, 159, 0, 0.55),
+    0 0 60px rgba(245, 159, 0, 0.22);
+}
+
+.login-logo-letters {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #04090F;
+  letter-spacing: 0.02em;
+}
+
+.login-title {
+  margin: 0;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #F59F00;
+  line-height: 1;
+}
+
+.login-subtitle {
+  margin: 10px 0 0;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.62rem;
+  color: rgba(245, 159, 0, 0.30);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* ── Form ── */
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.login-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.login-label {
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: rgba(245, 159, 0, 0.45);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.login-input {
+  background: rgba(2, 8, 16, 0.85);
+  border: 1px solid rgba(40, 140, 220, 0.22);
+  border-radius: 6px;
+  padding: 12px 14px;
+  color: #D6E8FF;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.88rem;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  box-sizing: border-box;
+  letter-spacing: 0.04em;
+}
+
+.login-input::placeholder {
+  color: rgba(255, 255, 255, 0.1);
+  letter-spacing: 0.1em;
+}
+
+.login-input:focus {
+  border-color: rgba(245, 159, 0, 0.55);
+  box-shadow: 0 0 0 3px rgba(245, 159, 0, 0.09);
+}
+
+/* ── Error ── */
+.login-error {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(255, 68, 85, 0.08);
+  border: 1px solid rgba(255, 68, 85, 0.25);
+  color: rgba(255, 100, 110, 0.9);
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.7rem;
+  letter-spacing: 0.02em;
+}
+
+/* ── Submit button ── */
+.login-btn {
+  margin-top: 6px;
+  padding: 13px;
+  border-radius: 6px;
+  border: 1px solid rgba(245, 159, 0, 0.55);
+  background: rgba(245, 159, 0, 0.92);
+  color: #04090F;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: opacity 0.2s, transform 0.1s, box-shadow 0.2s;
+  box-shadow: 0 4px 22px rgba(245, 159, 0, 0.32);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 48px;
+}
+
+.login-btn:hover:not(:disabled) {
+  opacity: 0.96;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 30px rgba(245, 159, 0, 0.48);
+}
+.login-btn:active:not(:disabled) { transform: translateY(0); }
+.login-btn:disabled { opacity: 0.38; cursor: not-allowed; }
+
+/* ── Spinner ── */
+.login-spinner {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(4, 9, 15, 0.28);
+  border-top-color: #04090F;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Footer ── */
+.login-footer {
+  margin: 30px 0 0;
+  text-align: center;
+  font-family: 'JetBrains Mono', 'Courier New', monospace;
+  font-size: 0.6rem;
+  color: rgba(255, 255, 255, 0.07);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
