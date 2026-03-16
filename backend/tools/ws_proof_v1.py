@@ -1,37 +1,98 @@
+# tools/ws_proof_v1.py
+# Milestone v1 — Αποδεικνύει ότι τα WebSocket endpoints απαιτούν JWT tokens
+#
+# Scenarios:
+# Test 1: Χωρίς token        → WS close code 4401
+# Test 2: Λάθος scope        → WS close code 4403
+# Test 3: Σωστό token        → Σύνδεση επιτυχής
+
 import asyncio
+import json
 import sys
+sys.path.insert(0, ".")
+
 import websockets
 
-BASE = "ws://127.0.0.1:8000"
+from app.security.jwt_service import mint_token
+
+WS_PLACEMENTS = "ws://localhost:8000/ws/placements"
+WS_ADS        = "ws://localhost:8000/ws/ads"
 
 
-async def try_connect(name: str, url: str):
-    print(f"\n=== {name} ===")
-    print(url)
+async def test_no_token():
+    """Test 1: Χωρίς token — πρέπει να κλείσει με 4401"""
+    print("\n[Test 1] Χωρίς token...")
     try:
-        async with websockets.connect(url) as ws:
-            try:
-                msg = await asyncio.wait_for(ws.recv(), timeout=2)
-                print("CONNECTED OK, received:", msg[:200])
-            except asyncio.TimeoutError:
-                print("CONNECTED OK, no message within 2s (still OK)")
-            return True
+        ws = await websockets.connect(WS_PLACEMENTS)
+        await ws.recv()
+        await ws.wait_closed()
+        code = ws.close_code
+        if code == 4401:
+            print(f"  PASS — Έκλεισε με κωδικό {code} (Unauthorized)")
+        else:
+            print(f"  FAIL — Αναμενόταν 4401, πήραμε {code}")
+    except websockets.exceptions.ConnectionClosedError as e:
+        if e.code == 4401:
+            print(f"  PASS — Έκλεισε με κωδικό {e.code} (Unauthorized)")
+        else:
+            print(f"  FAIL — Αναμενόταν 4401, πήραμε {e.code}")
     except Exception as e:
-        print("CONNECT FAILED:", repr(e))
-        return False
+        print(f"  FAIL — {type(e).__name__}: {e}")
+
+
+async def test_wrong_scope():
+    """Test 2: Token με λάθος scope — πρέπει να κλείσει με 4403"""
+    print("\n[Test 2] Token με λάθος scope (ads:read αντί placements:read)...")
+    token = mint_token("test-user", ["ads:read"])  # λάθος scope για /ws/placements
+    url = f"{WS_PLACEMENTS}?token={token}"
+    try:
+        ws = await websockets.connect(url)
+        await ws.recv()
+        await ws.wait_closed()
+        code = ws.close_code
+        if code == 4403:
+            print(f"  PASS — Έκλεισε με κωδικό {code} (Forbidden)")
+        else:
+            print(f"  FAIL — Αναμενόταν 4403, πήραμε {code}")
+    except websockets.exceptions.ConnectionClosedError as e:
+        if e.code == 4403:
+            print(f"  PASS — Έκλεισε με κωδικό {e.code} (Forbidden)")
+        else:
+            print(f"  FAIL — Αναμενόταν 4403, πήραμε {e.code}")
+    except Exception as e:
+        print(f"  FAIL — {type(e).__name__}: {e}")
+
+
+async def test_correct_token():
+    """Test 3: Σωστό token — πρέπει να συνδεθεί και να πάρει snapshot"""
+    print("\n[Test 3] Σωστό token με placements:read scope...")
+    token = mint_token("test-user", ["placements:read"])
+    url = f"{WS_PLACEMENTS}?token={token}"
+    try:
+        ws = await websockets.connect(url)
+        resp = await asyncio.wait_for(ws.recv(), timeout=5)
+        data = json.loads(resp)
+        await ws.close()
+        if data.get("type") == "placements_snapshot":
+            print(f"  PASS — Συνδέθηκε και πήρε snapshot (placements: {len(data.get('data', []))})")
+        else:
+            print(f"  FAIL — Unexpected response: {data}")
+    except Exception as e:
+        print(f"  FAIL — {type(e).__name__}: {e}")
 
 
 async def main():
-    if len(sys.argv) < 3:
-        print("Usage: python ws_proof_v1.py <adsJwt> <placementsJwt>")
-        sys.exit(1)
-
-    ads_jwt = sys.argv[1]
-    placements_jwt = sys.argv[2]
-
-    await try_connect("WS-1 missing token (expect FAIL/4401)", f"{BASE}/ws/ads")
-    await try_connect("WS-2 wrong scope (expect FAIL/4403)", f"{BASE}/ws/ads?token={placements_jwt}")
-    await try_connect("WS-3 correct scope (expect OK)", f"{BASE}/ws/ads?token={ads_jwt}")
+    print("=" * 55)
+    print("WS Proof v1 - JWT WebSocket Authentication")
+    print("=" * 55)
+    try:
+        await asyncio.gather(test_no_token(), test_wrong_scope(), test_correct_token())
+    except OSError as e:
+        print(f"\nFAIL Connection error: {e}")
+        print("Σιγουρεψου οτι ο server τρεχει: uvicorn app.main:app --reload")
+    except Exception as e:
+        print(f"\nFAIL Unexpected: {type(e).__name__}: {e}")
+    print("\n" + "=" * 55)
 
 
 if __name__ == "__main__":

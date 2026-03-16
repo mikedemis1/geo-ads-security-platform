@@ -82,6 +82,16 @@ class MultiIndexKey(BaseModel):
         )
 
 
+class DistributedResult(BaseModel):
+    """
+    Αποτέλεσμα από το DistributedScreenIndex.
+    Περιλαμβάνει ποιος κόμβος (node) επέστρεψε αυτή την οθόνη.
+    """
+    screen: Screen
+    distance: float
+    node: str  # "node_glassfloor" | "node_surrounding" | "node_megatron"
+
+
 class ScreenRecommendation(BaseModel):
     """
     Απλό αποτέλεσμα recommendation:

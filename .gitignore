@@ -42,3 +42,13 @@ backend/.env
 backend/.env.*
 !/.env.example
 !/backend/.env.example
+
+# Claude Code assistant memory (personal, not project)
+.claude/
+
+# Microsoft Office temp/lock files
+~$*
+
+# Test/debug artifacts
+body.json
+frontend/geo-ads-frontend/frontend_log.txt

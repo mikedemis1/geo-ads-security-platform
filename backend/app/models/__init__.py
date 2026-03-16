@@ -1,4 +1,7 @@
 # backend/app/models/__init__.py
-from .models import Advertisement, Zone
+"""
+Models package.
 
-__all__ = ["Advertisement", "Zone"]
+Do not import concrete models here.
+Import directly from app.models.<module> to avoid side effects/circular imports.
+"""
