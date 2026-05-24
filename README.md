@@ -124,27 +124,51 @@ Simulates a distributed system by partitioning screens across virtual nodes and 
 
 ## Security Layer
 
-### JWT Authentication
-All HTTP endpoints and WebSocket connections require a Bearer token. Tokens carry fine-grained scopes (`ads:read`, `placements:write`, `security:read`, etc.). The `/auth/token` endpoint issues access + refresh tokens.
+The security layer is designed around the principle of **defence in depth** — multiple independent mechanisms protect the system at different levels. Each layer addresses a distinct attack surface.
+
+### JWT Authentication & Authorization
+All HTTP endpoints and WebSocket connections require a signed Bearer token (HS256). Tokens carry fine-grained **OAuth2-style scopes** (`ads:read`, `placements:write`, `security:read`, etc.) embedded as claims. The `/auth/token` endpoint issues short-lived **access tokens** (1h) and long-lived **refresh tokens** (24h). Scope violations return HTTP 403 before any business logic runs.
 
 ### Rate Limiting
-Login endpoint and sensitive routes are rate-limited via `slowapi`. Rate-limit violations are automatically forwarded to the threat engine as events.
+The login endpoint is rate-limited to **5 requests per minute per IP** using `slowapi`. This directly mitigates brute-force and credential stuffing attacks. Any request that triggers a 429 Too Many Requests response is automatically forwarded to the Threat Detection Engine as a `rate_limited` event for correlation with other signals.
 
-### HMAC + Anti-Replay (WebSocket)
-Each WS message is signed with HMAC-SHA256. The server validates the signature and rejects replayed messages using a timestamp + nonce window.
+### WebSocket Message Integrity — HMAC + Anti-Replay
+WebSocket connections introduce a separate attack surface beyond standard HTTP. Each message is signed with **HMAC-SHA256** using a shared secret. The server validates the signature on receipt, rejecting any message where the MAC does not match (tampering detection). Additionally, a **timestamp + nonce** window of 60 seconds prevents replay attacks — a captured message cannot be re-sent after the window expires. The system supports **crypto agility**: the hash function can be switched between SHA-256 and SHA3-256 via the `CRYPTO_MODE` environment variable without code changes.
 
 ### Threat Detection Engine (`threat_engine.py`)
-A hybrid detector running two strategies in parallel on every security event:
+A hybrid detector running two independent strategies in parallel on the same event stream:
 
-| Strategy | Method | Trigger |
-|----------|--------|---------|
-| Rule-Based | Fixed thresholds per IP per time window | `auth_failed ≥ 5 / 60s` → brute_force alert |
-| Statistical | Z-score on rolling event rate | Rate deviates > 2σ from baseline → anomaly alert |
+| Strategy | Algorithm | Detects |
+|----------|-----------|---------|
+| Rule-Based | Fixed threshold per IP per time window | Brute force, credential stuffing, replay abuse |
+| Statistical | Z-score on rolling event rate (sliding window) | Anomalous spikes deviating > 2σ from baseline |
 
-Both detectors process the same event stream. The `/security/comparison` endpoint exposes a side-by-side comparison of which detector fired and how fast.
+**Why two detectors?** Rule-based detectors are fast and precise for known attack patterns but blind to novel threats. Statistical detectors catch anomalies without predefined rules but can produce false positives on legitimate traffic spikes. Running both in parallel and comparing results is the core research question of this project.
+
+Security events include: `auth_failed`, `auth_success`, `rate_limited`, `replay_detected`, `hmac_failed`, `ws_auth_failed`. Every event records the source IP, timestamp, and detection method. The `/security/comparison` endpoint exposes side-by-side detection latency and alert counts for both methods.
+
+### Security Headers Middleware
+Every HTTP response includes hardened headers applied at the middleware level:
+
+| Header | Value |
+|--------|-------|
+| `X-Frame-Options` | `DENY` — prevents clickjacking |
+| `X-Content-Type-Options` | `nosniff` — prevents MIME sniffing |
+| `X-XSS-Protection` | `1; mode=block` — legacy XSS filter |
+| `Content-Security-Policy` | Restricts script, style, image, and WebSocket sources |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+
+### CORS Policy
+Cross-Origin Resource Sharing is configured with an explicit allowlist (`ALLOWED_ORIGINS` env var). Only GET, POST, and OPTIONS methods are permitted. Credentials are allowed exclusively for trusted origins.
 
 ### Audit Log
-Every HTTP request is logged as a JSON line to `audit.log`: timestamp, method, path, authenticated user, status code, and response time in ms.
+Every HTTP request is logged as a structured JSON line to `audit.log`:
+
+```json
+{"time": "2025-05-24T17:00:00Z", "method": "POST", "path": "/auth/token", "sub": "admin", "status": 200, "ms": 12.4}
+```
+
+This creates a tamper-evident trail of all system activity including authenticated user identity, which is useful for post-incident forensic analysis.
 
 ---
 
