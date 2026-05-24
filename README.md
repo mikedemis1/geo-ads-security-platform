@@ -1,135 +1,241 @@
-# GEO-ADS — Σύστημα Στοχευμένων Διαφημίσεων Γηπέδου
+# GEO-ADS — Real-Time Geo-Targeted Ad Management System
 
-Διπλωματική εργασία — Μιχάλης Δεμής (ΑΜ 1080958)  
-Πανεπιστήμιο Πατρών, Τμήμα Ηλεκτρολόγων Μηχανικών & Τεχνολογίας Υπολογιστών
+<div align="center">
 
----
+![Type](https://img.shields.io/badge/Type-Diploma%20Thesis-blue?style=for-the-badge)
+![Backend](https://img.shields.io/badge/Backend-FastAPI-green?style=for-the-badge&logo=fastapi)
+![DB](https://img.shields.io/badge/Database-PostgreSQL%20%2B%20PostGIS-336791?style=for-the-badge&logo=postgresql)
+![Frontend](https://img.shields.io/badge/Frontend-React-61DAFB?style=for-the-badge&logo=react)
+![Desktop](https://img.shields.io/badge/Desktop-Electron-47848F?style=for-the-badge&logo=electron)
 
-## Τι είναι
-
-Real-time σύστημα διαχείρισης και προβολής στοχευμένων διαφημίσεων σε αθλητικές εγκαταστάσεις.  
-Υποστηρίζει τρεις ζώνες οθονών (GlassFloor, Surrounding, Megatron) με πολυδιάστατο σύστημα ευρετηρίασης, recommendation engine, και πλήρες επίπεδο ασφάλειας.
-
----
-
-## Αρχιτεκτονική
-
-| Στρώμα | Τεχνολογία |
-|---|---|
-| Backend | FastAPI + uvicorn (Python 3.11+) |
-| Database | PostgreSQL 16 (Docker Compose) |
-| Frontend | React 18 (VisualBoard SPA) |
-| Desktop | Electron (auto-start backend + load UI) |
-| Real-time | WebSockets (FastAPI native) |
-| Security | JWT + HMAC + Anti-Replay + Rate Limiting + Audit Log |
+</div>
 
 ---
 
-## Ζώνες Γηπέδου
+## Project Overview
 
-| Ζώνη | Grid | Οθόνες | Screen Type |
-|---|---|---|---|
-| GlassFloor | 4×4 | 16 tiles | glassfloor_tile |
-| Surrounding | 2×4 | 8 banners | surrounding_banner |
-| Megatron | 2×2 | 4 panels | megatron_panel |
+GEO-ADS is a real-time advertisement management system built for a smart stadium environment. The idea is to automatically assign ads to the right screen at the right time based on spatial proximity — using multiple indexing strategies and comparing their performance.
+
+The stadium has three screen zones: a glass floor, surrounding perimeter banners, and a megatron. The system receives ad requests, finds the best matching screen using spatial queries, assigns the ad, and broadcasts the placement live to all connected clients via WebSocket.
+
+On top of the core placement logic, the system includes a full security layer: JWT authentication with fine-grained scopes, rate limiting, HMAC-signed WebSocket messages with anti-replay protection, and a hybrid threat detection engine that runs rule-based and statistical (Z-score) detectors in parallel.
+
+### What This Project Covers
+
+- Spatial indexing with R-Tree, KD-Tree, Grid, PostGIS GIST, and a Distributed (MapReduce-style) index
+- Real-time ad placement via spatial recommendation + WebSocket broadcast
+- JWT authentication with OAuth2-style scopes for both HTTP and WebSocket
+- Hybrid threat detection: rule-based thresholds vs. Z-score statistical anomaly detection
+- Audit logging of every HTTP request with timing and user identity
+- Live benchmark endpoint comparing all spatial index methods head-to-head
+- React frontend with a visual board, login page, and security dashboard
+- Electron desktop wrapper that runs the whole system locally
 
 ---
 
-## Setup
+## Architecture
 
-### 1. Database
-```bash
-docker-compose up -d
-cd backend && python tools/db_check.py
+```
+                    ┌──────────────────────────────────┐
+                    │        Electron Desktop App       │
+                    │  (wraps React UI + starts backend)│
+                    └───────────────┬──────────────────┘
+                                    │
+                    ┌───────────────▼──────────────────┐
+                    │          React Frontend           │
+                    │  VisualBoard / SecurityDashboard  │
+                    └───────────────┬──────────────────┘
+                               HTTP │ WebSocket
+                    ┌───────────────▼──────────────────┐
+                    │          FastAPI Backend          │
+                    │                                  │
+                    │  ┌──────────────────────────┐    │
+                    │  │   Spatial Index Engine   │    │
+                    │  │  R-Tree · KD-Tree · Grid │    │
+                    │  │  PostGIS · Distributed   │    │
+                    │  └──────────────────────────┘    │
+                    │                                  │
+                    │  ┌──────────────────────────┐    │
+                    │  │      Security Layer      │    │
+                    │  │  JWT · Rate Limit · HMAC │    │
+                    │  │  ThreatEngine(Rule+Zscore)│   │
+                    │  └──────────────────────────┘    │
+                    │                                  │
+                    │  ┌──────────────────────────┐    │
+                    │  │    Placement Service     │    │
+                    │  │ in-memory · WS broadcast │    │
+                    │  └──────────────────────────┘    │
+                    └───────────────┬──────────────────┘
+                                    │
+                    ┌───────────────▼──────────────────┐
+                    │      PostgreSQL + PostGIS         │
+                    │   advertisements · screens        │
+                    └──────────────────────────────────┘
 ```
 
-### 2. Backend
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-```
+---
 
-### 3. Frontend
-```bash
-cd frontend/geo-ads-frontend
-npm install && npm start
-```
+## Components
 
-### 4. Desktop (all-in-one)
-```bash
-cd desktop/geo-ads-desktop
-npm install && npm run desktop
+```
+Core Placement          (Completed)
+         ↓
+Spatial Index Engine    (Completed)
+         ↓
+JWT Auth + WS Security  (Completed)
+         ↓
+Threat Detection Engine (Completed)
+         ↓
+React UI + Electron     (Completed)
 ```
 
 ---
 
-## Security
+## Core Placement
 
-| Layer | Μηχανισμός |
-|---|---|
-| HTTP Auth | JWT Bearer tokens (HS256, scoped) |
-| WS Auth | JWT via query param → close 4401/4403 |
-| WS Integrity | HMAC-SHA256 signed messages (CryptoEngine) |
-| Anti-Replay | Timestamp window 60s + nonce deduplication |
-| Rate Limiting | 5 req/min on POST /auth/token (slowapi) |
-| Audit Logging | JSON middleware → audit.log |
-| Crypto Agility | SHA-256 / SHA3-256 via CRYPTO_MODE env var |
+### `placement_service.py`
+In-memory ad assignment engine. Receives a spatial recommendation (screen + zone), creates a placement record, and triggers a WebSocket broadcast so all connected clients see the new assignment in real time.
+
+### `websockets.py`
+WebSocket manager that handles client connections and broadcasts `placement_assigned` events. All WS connections require a signed JWT token validated on handshake.
+
+---
+
+## Spatial Index Engine
+
+Five indexing strategies are implemented and can be benchmarked live via `/benchmark/spatial`.
+
+### R-Tree (`rtree` library)
+In-memory spatial index. O(log n) range queries. Used as the default for ad screen recommendation.
+
+### KD-Tree (`scipy.spatial.KDTree`)
+Alternative in-memory index. Efficient for nearest-neighbour lookups in low-dimensional space.
+
+### Grid Index
+The venue is divided into fixed-size cells. Queries check only the relevant cells — O(1) cell lookup, then linear scan within the cell.
+
+### PostGIS GIST (`ST_DWithin`)
+Database-level spatial query using a GIST index on WGS-84 coordinates. Comparable to the R-Tree but runs inside PostgreSQL.
+
+### Distributed Index (MapReduce simulation)
+Simulates a distributed system by partitioning screens across virtual nodes and fanning out queries in parallel. Results are merged and deduplicated.
+
+---
+
+## Security Layer
+
+### JWT Authentication
+All HTTP endpoints and WebSocket connections require a Bearer token. Tokens carry fine-grained scopes (`ads:read`, `placements:write`, `security:read`, etc.). The `/auth/token` endpoint issues access + refresh tokens.
+
+### Rate Limiting
+Login endpoint and sensitive routes are rate-limited via `slowapi`. Rate-limit violations are automatically forwarded to the threat engine as events.
+
+### HMAC + Anti-Replay (WebSocket)
+Each WS message is signed with HMAC-SHA256. The server validates the signature and rejects replayed messages using a timestamp + nonce window.
+
+### Threat Detection Engine (`threat_engine.py`)
+A hybrid detector running two strategies in parallel on every security event:
+
+| Strategy | Method | Trigger |
+|----------|--------|---------|
+| Rule-Based | Fixed thresholds per IP per time window | `auth_failed ≥ 5 / 60s` → brute_force alert |
+| Statistical | Z-score on rolling event rate | Rate deviates > 2σ from baseline → anomaly alert |
+
+Both detectors process the same event stream. The `/security/comparison` endpoint exposes a side-by-side comparison of which detector fired and how fast.
+
+### Audit Log
+Every HTTP request is logged as a JSON line to `audit.log`: timestamp, method, path, authenticated user, status code, and response time in ms.
 
 ---
 
 ## API Endpoints
 
 | Method | Path | Scope |
-|---|---|---|
-| GET | /health | — |
-| GET | /advertisements | ads:read |
-| GET | /advertisements/zone/{zone_id} | ads:read |
-| GET | /layout | layout:read |
-| GET | /layout/zones/{zone_id}/screens | layout:read |
-| GET | /layout/query/near | layout:read |
-| GET | /layout/multiindex | layout:read |
-| GET | /layout/recommendation/screen | recommendation:read |
-| GET | /recommendation/advertisements/{ad_id}/screen | recommendation:read |
-| GET | /placements | placements:read |
-| POST | /placements/recommend_and_assign/advertisements/{ad_id} | placements:write |
-| POST | /auth/token | X-Admin-Secret header |
-| WS | /ws/ads | ads:read |
-| WS | /ws/placements | placements:read |
-| WS | /ws/recommendation | JWT + HMAC + Anti-Replay |
-| WS | /ws/recommendation-simple | JWT only (React frontend) |
+|--------|------|-------|
+| POST | `/auth/token` | — |
+| GET | `/advertisements` | `ads:read` |
+| GET | `/advertisements/zone/{zone_id}` | `ads:read` |
+| GET | `/layout` | `layout:read` |
+| GET | `/layout/query/near` | `layout:read` |
+| GET | `/layout/postgis/near` | `layout:read` |
+| GET | `/layout/distributed/near` | `layout:read` |
+| GET | `/layout/recommendation/screen` | `recommendation:read` |
+| GET | `/benchmark/spatial` | `layout:read` |
+| GET | `/placements` | `placements:read` |
+| POST | `/placements/recommend_and_assign/advertisements/{id}` | `placements:write` |
+| GET | `/security/alerts` | `security:read` |
+| GET | `/security/events` | `security:read` |
+| GET | `/security/comparison` | `security:read` |
+| WS | `/ws/placements` | JWT required |
+| WS | `/ws/recommendation` | JWT + HMAC + Anti-Replay |
 
 ---
 
-## Acceptance Tests
+## Stadium Zones
+
+| Zone | Grid | Screen Type |
+|------|------|-------------|
+| GlassFloor | 4 × 4 | `glassfloor_tile` |
+| Surrounding | 2 × 4 | `surrounding_banner` |
+| Megatron | 2 × 2 | `megatron_panel` |
+
+---
+
+## How to Run
+
+**Prerequisites:** Docker, Python 3.11+, Node.js 18+
+
+**1. Start the database**
+
+```bash
+docker-compose up -d
+```
+
+**2. Set up environment**
+
+```bash
+cp backend/.env.example backend/.env
+# Edit backend/.env — set a real JWT_SECRET
+```
+
+**3. Run the backend**
 
 ```bash
 cd backend
+pip install -r requirements.txt
+uvicorn app.main:app --reload --port 8000
+```
 
-# 1. Database
-python tools/db_check.py
+API docs at `http://localhost:8000/docs`
 
-# 2. JWT WS auth (4401/4403/200)
-python tools/ws_proof_v1.py
+**4. Run the frontend**
 
-# 3. WS recommendation-simple (plain JSON + JWT)
-python tools/ws_proof_v1b_simple.py
+```bash
+cd frontend/geo-ads-frontend
+npm install
+npm start
+```
 
-# 4. HMAC message signing
-python tools/ws_proof_v2.py
+Frontend at `http://localhost:3000`
 
-# 5. Anti-replay protection
-python tools/ws_proof_v3.py
+**5. (Optional) Run the desktop app**
 
-# 6. Rate limiting (PowerShell)
-.\tools\test_ratelimit.ps1
-
-# 7. REST auth
-python tools/test_auth_rest.py
+```bash
+cd desktop/geo-ads-desktop
+npm install
+npm start
 ```
 
 ---
 
-## Environment Variables
+## Tech Stack
 
-Βλ. `backend/.env.example`
+| Layer | Technology |
+|-------|-----------|
+| Backend | Python 3.11, FastAPI, Uvicorn |
+| Spatial | rtree, scipy, PostGIS ST_DWithin |
+| Auth | PyJWT, slowapi |
+| Database | PostgreSQL 16 + PostGIS 3.4 (Docker) |
+| Frontend | React 18 |
+| Desktop | Electron |
+| Infrastructure | Docker, Docker Compose |
