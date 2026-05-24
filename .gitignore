@@ -53,6 +53,17 @@ backend/.env.*
 body.json
 frontend/geo-ads-frontend/frontend_log.txt
 
+# Dev utilities
+check_port.ps1
+kill_port8000.ps1
+mcp_postgres_server.py
+backend/tools/
+backend/docs/
+
+# Project notes
+docs/CONTEXT_PACKET.md
+docs/CONTRACTS.md
+
 # Benchmark outputs
 backend/benchmark_results.csv
 backend/benchmark_all_results.csv
