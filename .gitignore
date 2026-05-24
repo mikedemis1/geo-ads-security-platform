@@ -52,3 +52,22 @@ backend/.env.*
 # Test/debug artifacts
 body.json
 frontend/geo-ads-frontend/frontend_log.txt
+
+# Benchmark outputs
+backend/benchmark_results.csv
+backend/benchmark_all_results.csv
+
+# Thesis personal docs
+docs/DIPLOMA_MIKE_FORMATTED.docx
+docs/GEO-ADS_ChatGPT_Prompts.docx
+docs/THESIS_*.md
+docs/thesis_ai_prompt.md
+docs/chatgpt_prompts_per_section.md
+docs/build_thesis.py
+docs/make_word_prompts.py
+docs/source_paragraphs.json
+docs/*.pptx
+docs/*.js
+docs/package*.json
+docs/*.txt
+docs/pptx_raw_content.md
