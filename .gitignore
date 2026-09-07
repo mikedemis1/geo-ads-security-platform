@@ -82,3 +82,10 @@ docs/*.js
 docs/package*.json
 docs/*.txt
 docs/pptx_raw_content.md
+
+# Codex CLI local instructions — personal, not project
+AGENTS.md
+
+# Claude Code instructions and project memory — personal, not project
+CLAUDE.md
+_memory/
