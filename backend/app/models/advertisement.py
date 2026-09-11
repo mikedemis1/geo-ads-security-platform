@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 class Advertisement(BaseModel):
     """
-    Μοντέλο διαφήμισης όπως είναι στη βάση:
+    Advertisement model, as stored in the database:
     id, name, image_url, zone.
     """
 

@@ -8,8 +8,8 @@ from app.models.layout_models import Zone, Screen, MultiIndexKey
 
 class LayoutService:
     """
-    Κεντρική υπηρεσία που ξέρει τη διάταξη των οθονών στο γήπεδο.
-    Προς το παρόν είναι static (in-memory), χωρίς βάση.
+    Knows the layout of the screens in the stadium.
+    Static and in-memory for now; no database.
     """
 
     @staticmethod
@@ -26,7 +26,7 @@ class LayoutService:
                         zone_id="glassfloor",
                         row=row,
                         col=col,
-                        screen_type="glassfloor_tile",  # ΝΕΟ
+                        screen_type="glassfloor_tile",
                     )
                 )
 
@@ -34,7 +34,7 @@ class LayoutService:
             Zone(
                 id="glassfloor",
                 name="GlassFloor",
-                description="Γυάλινο γήπεδο στο κέντρο",
+                description="Glass floor in the centre",
                 rows=4,
                 cols=4,
                 screens=gf_screens,
@@ -51,7 +51,7 @@ class LayoutService:
                         zone_id="surrounding",
                         row=row,
                         col=col,
-                        screen_type="surrounding_banner",  # ΝΕΟ
+                        screen_type="surrounding_banner",
                     )
                 )
 
@@ -59,7 +59,7 @@ class LayoutService:
             Zone(
                 id="surrounding",
                 name="Surrounding Screens",
-                description="Περιμετρικές οθόνες γύρω από το γήπεδο",
+                description="Perimeter screens around the pitch",
                 rows=2,
                 cols=4,
                 screens=sur_screens,
@@ -76,7 +76,7 @@ class LayoutService:
                         zone_id="megatron",
                         row=row,
                         col=col,
-                        screen_type="megatron_panel",  # ΝΕΟ
+                        screen_type="megatron_panel",
                     )
                 )
 
@@ -84,7 +84,7 @@ class LayoutService:
             Zone(
                 id="megatron",
                 name="Megatron Screens",
-                description="Κεντρικές μεγάλες οθόνες (Megatron)",
+                description="Large central screens (Megatron)",
                 rows=2,
                 cols=2,
                 screens=mega_screens,
@@ -95,58 +95,58 @@ class LayoutService:
 
 
 # ------------------------------------------
-#  ΠΟΛΥΔΙΑΣΤΑΤΟΣ INDEX (ένα μόνο αντίγραφο!)
+#  MULTI-DIMENSIONAL INDEX (a single copy)
 # ------------------------------------------
 
 
 class MultiDimScreenIndex:
     """
-    Πιο έξυπνος index για screens.
+    The screen index.
 
-    Κρατάει:
-    - ανά ζώνη (zone_id)
-    - ανά grid (zone_id, row, col)
-    - 2D συντεταγμένες (x, y) για κοντινά queries
+    Keeps:
+    - screens per zone (zone_id)
+    - screens per grid cell (zone_id, row, col)
+    - 2D coordinates (x, y) for proximity queries
 
-    Για αρχή όλα είναι in-memory (single process),
-    ώστε αργότερα να το "σπάσουμε" σε distributed nodes.
+    Everything is in-memory in a single process,
+    so it can later be split into distributed nodes.
     """
 
     def __init__(self, zones: list[Zone]):
-        # 1) Αποθηκεύουμε τις ζώνες
+        # 1) Store the zones
         self._zones_by_id: dict[str, Zone] = {z.id: z for z in zones}
 
-        # 2) Flat λίστα με όλα τα screens
+        # 2) Flat list of every screen
         self._screens: list[Screen] = [s for z in zones for s in z.screens]
 
-        # 3) Index ανά ζώνη
+        # 3) Index per zone
         self._screens_by_zone: dict[str, list[Screen]] = {}
 
-        # 4) Index ανά grid (zone_id, row, col)
+        # 4) Index per grid cell (zone_id, row, col)
         self._screens_by_grid: dict[tuple[str, int, int], Screen] = {}
 
-        # 5) Index για 2D κοντινά queries (x, y, screen)
-        #    Προς το παρόν linear scan. Αργότερα μπαίνει R-Tree.
+        # 5) Index for 2D proximity queries (x, y, screen)
+        #    Linear scan here; the R-Tree below is the fast path.
         self._coords: list[tuple[float, float, Screen]] = []
 
         for screen in self._screens:
-            # Ανά ζώνη
+            # Per zone
             self._screens_by_zone.setdefault(screen.zone_id, []).append(screen)
 
-            # Ανά grid
+            # Per grid cell
             grid_key = (screen.zone_id, screen.row, screen.col)
             self._screens_by_grid[grid_key] = screen
 
-            # 2D θέση στο "grid space"
-            # Για αρχή: x = col, y = row (απλό μοντέλο)
+            # 2D position in grid space
+            # Simple model: x = col, y = row
             x = float(screen.col)
             y = float(screen.row)
             self._coords.append((x, y, screen))
 
-        # 6) R-Tree για O(log n) 2D range queries
+        # 6) R-Tree for O(log n) 2D range queries
         self._build_rtree()
 
-        # 7) KD-Tree (scipy) — εναλλακτικό O(log n) spatial index
+        # 7) KD-Tree (scipy), an alternative O(log n) spatial index
         self._build_kdtree()
 
         # 8) Grid Index — hash-based O(1) amortized lookup
@@ -159,9 +159,9 @@ class MultiDimScreenIndex:
 
     def _build_rtree(self) -> None:
         """
-        Χτίζει R-Tree 2D index για O(log n) range queries.
-        Κάθε screen εισάγεται ως point: bounding box (x, y, x, y).
-        Το integer key i αντιστοιχεί στο _coords[i].
+        Build the 2D R-Tree index for O(log n) range queries.
+        Each screen is inserted as a point: bounding box (x, y, x, y).
+        The integer key i maps to _coords[i].
         """
         prop = rtree_index.Property()
         prop.dimension = 2
@@ -177,10 +177,10 @@ class MultiDimScreenIndex:
 
     def _build_kdtree(self) -> None:
         """
-        Χτίζει KD-Tree (scipy) για O(log n) 2D range queries.
-        Εναλλακτικό του R-Tree — διαφορετικός αλγόριθμος, ίδια complexity.
-        Το KD-Tree κάνει binary space partitioning (ανά άξονα),
-        ενώ το R-Tree χρησιμοποιεί ορθογώνια bounding boxes.
+        Build the scipy KD-Tree for O(log n) 2D range queries.
+        An alternative to the R-Tree: different algorithm, same complexity.
+        The KD-Tree partitions space by axis,
+        while the R-Tree uses rectangular bounding boxes.
         """
         points = [(x, y) for x, y, _ in self._coords]
         self._kdtree = KDTree(points)
@@ -195,7 +195,7 @@ class MultiDimScreenIndex:
     ) -> list[Screen]:
         """
         O(log n) KD-Tree range query (scipy).
-        query_ball_point() επιστρέφει ακριβώς τα indices εντός κύκλου ακτίνας radius.
+        query_ball_point() returns exactly the indices inside the circle of the given radius.
         """
         indices = self._kdtree.query_ball_point([x, y], radius)
         results: list[Screen] = []
@@ -212,10 +212,10 @@ class MultiDimScreenIndex:
 
     def _build_grid_index(self) -> None:
         """
-        Χτίζει Hash-based Grid Index για O(1) amortized range queries.
-        Ο χώρος χωρίζεται σε κελιά μεγέθους cell_size.
-        Κάθε screen ανήκει σε ένα κελί (hash key = (cx, cy)).
-        Για query: ελέγχει μόνο τα κελιά που τέμνονται με το bounding box.
+        Build the hash-based grid index for O(1) amortised range queries.
+        Space is divided into cells of size cell_size.
+        Each screen belongs to one cell (hash key = (cx, cy)).
+        A query checks only the cells that intersect the bounding box.
         """
         self._grid: dict[tuple[int, int], list[tuple[float, float, Screen]]] = {}
         for x, y, screen in self._coords:
@@ -231,8 +231,8 @@ class MultiDimScreenIndex:
     ) -> list[Screen]:
         """
         O(1) amortized Grid Index range query.
-        Υπολογίζει ποια κελιά τέμνονται με το bounding box (x±r, y±r),
-        ελέγχει μόνο αυτά — χωρίς να σαρώσει όλο τον χώρο.
+        Work out which cells intersect the bounding box (x±r, y±r)
+        and check only those, never the whole space.
         """
         min_cx = int((x - radius) // self._cell_size)
         max_cx = int((x + radius) // self._cell_size)
@@ -254,24 +254,24 @@ class MultiDimScreenIndex:
         return results
 
     # -----------------------------
-    #  ΑΠΛΑ QUERIES (όπως πριν)
+    #  SIMPLE QUERIES
     # -----------------------------
 
     def query_by_zone(self, zone_id: str) -> list[Screen]:
         """
-        Επιστρέφει όλα τα screens για μια ζώνη.
-        Πλήρως συμβατό με το παλιό NaiveScreenIndex.
+        Return every screen in a zone.
+        Same contract as the earlier NaiveScreenIndex.
         """
         return list(self._screens_by_zone.get(zone_id, []))
 
     def query_by_grid(self, zone_id: str, row: int, col: int) -> Screen | None:
         """
-        Επιστρέφει ένα screen με βάση zone + row + col.
+        Return one screen by zone, row and column.
         """
         return self._screens_by_grid.get((zone_id, row, col))
 
     # -----------------------------
-    #  ΠΟΛΥΔΙΑΣΤΑΤΑ QUERIES
+    #  MULTI-DIMENSIONAL QUERIES
     # -----------------------------
 
     def query_near_linear(
@@ -282,8 +282,8 @@ class MultiDimScreenIndex:
         zone_id: str | None = None,
     ) -> list[Screen]:
         """
-        O(n) γραμμική αναζήτηση — χρησιμοποιείται ΜΟΝΟ για benchmark σύγκριση.
-        Ελέγχει κάθε screen ένα-ένα με hypot().
+        O(n) linear scan, used only as the benchmark baseline.
+        Checks every screen one by one with hypot().
         """
         results: list[Screen] = []
         for sx, sy, screen in self._coords:
@@ -303,12 +303,12 @@ class MultiDimScreenIndex:
         """
         O(log n) R-Tree range query.
 
-        Βήματα:
-        1) Bounding box query στο R-Tree: (x-r, y-r, x+r, y+r)
-           → επιστρέφει υποψηφίους γρήγορα
-        2) Ακριβής κυκλικός έλεγχος με hypot() για όσους βρέθηκαν
-           (το R-Tree επιστρέφει ορθογώνιο, όχι κύκλο)
-        3) Προαιρετικό φίλτρο zone_id
+        Steps:
+        1) Bounding-box query on the R-Tree: (x-r, y-r, x+r, y+r)
+           returns candidates quickly
+        2) Exact circular check with hypot() on the candidates
+           (the R-Tree returns a rectangle, not a circle)
+        3) Optional zone_id filter
         """
         bbox = (x - radius, y - radius, x + radius, y + radius)
         results: list[Screen] = []
@@ -329,13 +329,13 @@ class MultiDimScreenIndex:
         zone_id: str | None = None,
     ) -> list[Screen]:
         """
-        PostGIS ST_DWithin range query — πραγματικές γεωγραφικές συντεταγμένες.
+        PostGIS ST_DWithin range query on real geographic coordinates.
 
-        Διαφορά από query_near():
-        - query_near()        : in-memory R-Tree, grid coords (row/col), απόσταση σε grid units
-        - query_near_postgis(): PostGIS DB query, WGS-84 lat/lon, απόσταση σε ΜΕΤΡΑ
+        Difference from query_near():
+        - query_near()        : in-memory R-Tree, grid coordinates (row/col), distance in grid units
+        - query_near_postgis(): PostGIS query, WGS-84 lat/lon, distance in metres
 
-        Χρησιμοποιεί GIST index → O(log n) στη DB.
+        Uses the GIST index, O(log n) inside the database.
         ST_MakePoint(lon, lat) — PostGIS convention: X=longitude, Y=latitude.
 
         Security: parameterized queries (no f-string SQL) + try/finally for connection cleanup.
@@ -372,7 +372,7 @@ class MultiDimScreenIndex:
         ]
 
     def get_all_screens(self) -> list[Screen]:
-        """Χρήσιμο για debugging / testing."""
+        """Handy for debugging and tests."""
         return list(self._screens)
 
     def build_keys(
@@ -381,12 +381,12 @@ class MultiDimScreenIndex:
         time_window: str | None = None,
     ) -> list[MultiIndexKey]:
         """
-        Δημιουργεί μια λίστα από MultiIndexKey αντικείμενα
-        για ΟΛΑ τα screens του γηπέδου.
+        Build a list of MultiIndexKey objects
+        for every screen in the stadium.
 
-        Προς το παρόν:
-        - βάζουμε ίδια ad_category / time_window σε όλα,
-          όπως τα δώσει το endpoint.
+        For now:
+        - the same ad_category / time_window is applied to all of them,
+          as given by the endpoint.
         """
         return [
             MultiIndexKey.from_screen(
@@ -409,35 +409,35 @@ class MultiDimScreenIndex:
         time_window: str | None = None,
     ) -> tuple[MultiIndexKey, float] | None:
         """
-        Βρίσκει την "καλύτερη" οθόνη για μια διαφήμιση γύρω από ένα σημείο (x, y).
+        Find the "best" screen for an advertisement around a point (x, y).
 
-        Βήματα:
-        1) Παίρνουμε όλα τα κοντινά screens (query_near)
-        2) Αν έχει δοθεί screen_type, φιλτράρουμε
-        3) Επιλέγουμε αυτό με τη μικρότερη απόσταση
-        4) Γυρνάμε (MultiIndexKey, distance)
+        Steps:
+        1) Fetch the nearby screens (query_near)
+        2) Filter by screen_type if one was given
+        3) Pick the one with the smallest distance
+        4) Return (MultiIndexKey, distance)
 
-        Προς το παρόν η "ποιότητα" = μικρότερη γεωμετρική απόσταση.
-        Αργότερα μπορεί να προσθέσω scoring (π.χ. Megatron > GlassFloor).
+        "Best" currently means smallest geometric distance.
+        A scoring model (e.g. Megatron over GlassFloor) could replace it later.
         """
-        # 1) Κοντινά υποψήφια
+        # 1) Nearby candidates
         candidates = self.query_near(x=x, y=y, radius=radius, zone_id=zone_id)
 
-        # 2) Φίλτρο screen_type (αν ζητηθεί)
+        # 2) screen_type filter, if requested
         if screen_type is not None:
             candidates = [s for s in candidates if s.screen_type == screen_type]
 
         if not candidates:
             return None
 
-        # 3) Βρες το πιο κοντινό
+        # 3) Closest one wins
         def distance_to_screen(s: Screen) -> float:
             return hypot(float(s.col) - x, float(s.row) - y)
 
         best_screen = min(candidates, key=distance_to_screen)
         best_distance = distance_to_screen(best_screen)
 
-        # 4) Φτιάξε το κλειδί
+        # 4) Build the key
         key = MultiIndexKey.from_screen(
             best_screen,
             ad_category=ad_category,
@@ -450,22 +450,22 @@ class MultiDimScreenIndex:
 # ──────────────────────────────────────────────────────────────────────────────
 #  DISTRIBUTED INDEX SIMULATION  (Phase 3)
 #
-#  Αρχιτεκτονική:
-#    3 IndexShard  — κάθε ένα κρατά ένα υποσύνολο screens + δικό του R-tree
-#    DistributedScreenIndex (coordinator) — fan-out query παράλληλα σε όλα τα shards
+#  Architecture:
+#    3 IndexShard  - each holds a subset of the screens and its own R-tree
+#    DistributedScreenIndex (coordinator) - fans a query out to every shard in parallel
 #
 #  MapReduce pattern:
-#    Map    = κάθε shard.query_near() εκτελείται ανεξάρτητα (ThreadPoolExecutor)
+#    Map    = each shard.query_near() runs independently (ThreadPoolExecutor)
 #    Reduce = coordinator merge + sort by distance
 #
-#  Σε πραγματικό σύστημα οι IndexShard θα τρέχουν σε ξεχωριστά machines/processes
-#  επικοινωνώντας μέσω gRPC ή HTTP. Εδώ προσομοιώνονται σε ένα process.
+#  In a real system the shards would run on separate machines or processes
+#  talking over gRPC or HTTP. Here they are simulated inside one process.
 # ──────────────────────────────────────────────────────────────────────────────
 
 class IndexShard:
     """
-    Ένας κόμβος (node) του κατανεμημένου index.
-    Κρατά ένα partition των screens και το δικό του R-tree.
+    One node of the distributed index.
+    Holds one partition of the screens and its own R-tree.
     """
 
     def __init__(self, node_id: str, screens: list[Screen]):
@@ -492,7 +492,7 @@ class IndexShard:
         radius: float,
         zone_id: str | None = None,
     ) -> list[Screen]:
-        """O(log n) R-tree range query τοπικά στο shard."""
+        """O(log n) R-tree range query local to this shard."""
         bbox = (x - radius, y - radius, x + radius, y + radius)
         results: list[Screen] = []
         for i in self._rtree.intersection(bbox):
@@ -507,15 +507,15 @@ class IndexShard:
 
 class DistributedScreenIndex:
     """
-    Coordinator του κατανεμημένου index.
+    Coordinator of the distributed index.
 
-    Partitioning strategy: κάθε zone → ξεχωριστός IndexShard (node).
+    Partitioning: one IndexShard (node) per zone.
       Node A: GlassFloor  (16 screens)
       Node B: Surrounding ( 8 screens)
       Node C: Megatron    ( 4 screens)
 
-    Fan-out: ThreadPoolExecutor(3) — όλα τα shards ερωτώνται ταυτόχρονα.
-    Merge:   αποτελέσματα ταξινομούνται κατά απόσταση (Reduce step).
+    Fan-out: ThreadPoolExecutor(3), every shard is queried at the same time.
+    Merge:   results are sorted by distance (the Reduce step).
     """
 
     def __init__(self, zones: list[Zone]):
@@ -539,8 +539,8 @@ class DistributedScreenIndex:
         """
         Distributed fan-out query.
 
-        Map step  : κάθε shard εκτελεί query_near() ανεξάρτητα (parallel threads).
-        Reduce step: coordinator merge-άρει και ταξινομεί κατά απόσταση.
+        Map step  : each shard runs query_near() independently (parallel threads).
+        Reduce step: the coordinator merges and sorts by distance.
 
         Returns list of {"screen": Screen, "distance": float, "node": str}
         """
@@ -553,7 +553,7 @@ class DistributedScreenIndex:
                 for screen in local_results
             ]
 
-        # MAP: fan-out σε 3 threads ταυτόχρονα
+        # MAP: fan out to 3 threads at once
         with ThreadPoolExecutor(max_workers=3) as executor:
             futures = [executor.submit(shard_query, shard) for shard in self._shards]
             partial = [f.result() for f in futures]
@@ -568,14 +568,14 @@ class DistributedScreenIndex:
         ]
 
 
-# SINGLETON (ένα index για όλο το backend)
+# SINGLETON (one index for the whole backend)
 _INDEX: MultiDimScreenIndex | None = None
 
 
 def get_screen_index() -> MultiDimScreenIndex:
     """
-    Lazy δημιουργία του index.
-    Καλείται από τα endpoints του main.py.
+    Create the index lazily.
+    Called from the endpoints in main.py.
     """
     global _INDEX
     if _INDEX is None:

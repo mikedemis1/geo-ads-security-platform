@@ -2,12 +2,12 @@ import os
 import sys
 from dotenv import load_dotenv
 
-# Φορτώνει backend/.env (αυτό το αρχείο βρίσκεται σε backend/app/security/)
+# Loads backend/.env (this file lives in backend/app/security/)
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
 
 
 def _require_env(name: str) -> str:
-    """Απαιτεί μια μεταβλητή περιβάλλοντος — crash αν λείπει."""
+    """Require an environment variable; fail at startup if it is missing."""
     val = os.getenv(name)
     if not val:
         print(

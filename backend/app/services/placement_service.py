@@ -9,8 +9,8 @@ from app.models.layout_models import MultiIndexKey
 
 class PlacementService:
     """
-    Απλός in-memory πίνακας αναθέσεων.
-    Δεν ακουμπάει βάση – όλα ζουν στη RAM του backend.
+    A simple in-memory table of placements.
+    Never touches the database; everything lives in the backend's memory.
     """
 
     _placements: List[AdPlacement] = []
@@ -18,8 +18,8 @@ class PlacementService:
     @classmethod
     def assign_ad(cls, ad_id: int, key: MultiIndexKey) -> AdPlacement:
         """
-        Δημιουργεί μια νέα ανάθεση διαφήμισης σε οθόνη,
-        την αποθηκεύει στη λίστα και την επιστρέφει.
+        Create a new placement of an advertisement on a screen,
+        store it and return it.
         """
         placement = AdPlacement(
             ad_id=ad_id,
@@ -37,10 +37,10 @@ class PlacementService:
 
     @classmethod
     def list_all(cls) -> List[AdPlacement]:
-        """Επιστρέφει όλες τις αναθέσεις."""
+        """Return every placement."""
         return list(cls._placements)
 
     @classmethod
     def list_by_screen(cls, screen_id: str) -> List[AdPlacement]:
-        """Επιστρέφει όλες τις αναθέσεις για συγκεκριμένη οθόνη."""
+        """Return the placements for one screen."""
         return [p for p in cls._placements if p.screen_id == screen_id]

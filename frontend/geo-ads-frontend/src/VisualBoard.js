@@ -1,14 +1,14 @@
 import React, { useEffect, useState } from "react";
 import "./App.css";
 
-/** Βάση URL του backend (εκεί τρέχει ο FastAPI) */
+/** Base URL of the FastAPI backend */
 const BACKEND_BASE_URL =
   process.env.REACT_APP_BACKEND_BASE_URL || "http://127.0.0.1:8000";
 const WS_BASE_URL = BACKEND_BASE_URL.replace(/^http/, "ws");
 
 /**
- * Τοπικός χάρτης: όνομα διαφήμισης -> URL εικόνας στο backend/static.
- * Χρησιμοποιούμε ΠΛΗΡΕΣ URL για να δουλεύει σωστά μέσα στο Electron.
+ * Local map: advertisement name -> image URL under backend/static.
+ * Full URLs, so the images also load inside Electron.
  */
 const AD_IMAGE_MAP = {
   "Apple iPhone 14 Promo": `${BACKEND_BASE_URL}/static/galaxy_s25_ultra.jpg`,
@@ -20,7 +20,7 @@ const AD_IMAGE_MAP = {
 };
 
 /**
- * Επιλογή τελικού image URL για κάθε διαφήμιση.
+ * Pick the final image URL for an advertisement.
  */
 function resolveAdImageUrl(ad) {
   if (!ad) return null;
@@ -33,7 +33,7 @@ function resolveAdImageUrl(ad) {
     return `${BACKEND_BASE_URL}${ad.image_url}`;
   }
 
-  // 2) Fallback: hardcoded map (μόνο αν λείπει image_url)
+  // 2) Fallback: the hardcoded map (only when image_url is missing)
   if (AD_IMAGE_MAP[ad.name]) {
     return AD_IMAGE_MAP[ad.name];
   }
@@ -46,7 +46,7 @@ function authHeaders(token) {
 }
 
 /**
- * Υπολογίζει το CSS για κάθε tile του mosaic.
+ * Compute the CSS for each tile of the mosaic.
  */
 function computeMosaicBackgroundStyle(config, screen) {
   if (!config || !screen) return {};
@@ -73,7 +73,7 @@ function computeMosaicBackgroundStyle(config, screen) {
 function VisualBoard({ token: authToken, onLogout }) {
 
   // -----------------------------
-  //  Layout / ζώνες
+  //  Layout / zones
   // -----------------------------
   const [zones, setZones] = useState([]);
   const [selectedZoneId, setSelectedZoneId] = useState(null);
@@ -81,7 +81,7 @@ function VisualBoard({ token: authToken, onLogout }) {
   const [layoutError, setLayoutError] = useState(null);
 
   // -----------------------------
-  //  Διαφημίσεις ανά ζώνη
+  //  Advertisements per zone
   // -----------------------------
   const [zoneAds, setZoneAds] = useState([]);
   const [adsLoading, setAdsLoading] = useState(false);
@@ -93,11 +93,11 @@ function VisualBoard({ token: authToken, onLogout }) {
   const [wsStatus, setWsStatus] = useState("disconnected"); // eslint-disable-line no-unused-vars
 
   // -----------------------------
-  //  Επιλογή οθονών & placements
+  //  Screen selection and placements
   // -----------------------------
   const [selectionMode, setSelectionMode] = useState("single"); // "single" | "multi"
-  const [selectedScreen, setSelectedScreen] = useState(null); // για single
-  const [selectedScreens, setSelectedScreens] = useState([]); // για multi / mosaic
+  const [selectedScreen, setSelectedScreen] = useState(null); // single selection
+  const [selectedScreens, setSelectedScreens] = useState([]); // multi / mosaic selection
   const [placements, setPlacements] = useState({}); // placements[screenId] = ad
 
   // -----------------------------
@@ -188,11 +188,11 @@ function VisualBoard({ token: authToken, onLogout }) {
 
 
   // =====================
-  //  Φόρτωση LAYOUT
-  //  FIX: περιμένουμε το token (authToken dep) + Bearer header
+  //  Load LAYOUT
+  //  Waits for the token (authToken dependency) and sends the Bearer header
   // =====================
   useEffect(() => {
-    if (!authToken) return; // περίμενε το token πριν φορτώσεις
+    if (!authToken) return; // wait for the token before loading
 
     async function fetchLayout() {
       try {
@@ -213,17 +213,17 @@ function VisualBoard({ token: authToken, onLogout }) {
         }
       } catch (err) {
         console.error("Error fetching layout:", err);
-        setLayoutError("Δεν μπορώ να φορτώσω το layout από το backend.");
+        setLayoutError("Could not load the layout from the backend.");
       } finally {
         setLoadingLayout(false);
       }
     }
 
     fetchLayout();
-  }, [authToken]); // FIX: αλλαγή από [] → [authToken]
+  }, [authToken]);
 
   // =====================
-  //  Φόρτωση ADS ανά ΖΩΝΗ
+  //  Load ADS per ZONE
   // =====================
   useEffect(() => {
     if (!selectedZoneId) return;
@@ -247,7 +247,7 @@ function VisualBoard({ token: authToken, onLogout }) {
         setZoneAds(data);
       } catch (err) {
         console.error("Error fetching ads:", err);
-        setAdsError("Δεν μπορώ να φορτώσω τις διαφημίσεις για αυτή τη ζώνη.");
+        setAdsError("Could not load the advertisements for this zone.");
         setZoneAds([]);
       } finally {
         setAdsLoading(false);
@@ -258,7 +258,7 @@ function VisualBoard({ token: authToken, onLogout }) {
   }, [selectedZoneId, authToken]);
 
   // =====================
-  //  WebSocket για /ws/ads (status)
+  //  WebSocket for /ws/ads (status)
   // =====================
   useEffect(() => {
     if (!authToken) return;
@@ -308,7 +308,7 @@ function VisualBoard({ token: authToken, onLogout }) {
     ws.onopen = () => {
       setWsRecStatus("connected");
 
-      // Στέλνουμε περιοδικά τις παραμέτρους
+      // Send the parameters periodically
       timerId = setInterval(() => {
         const currentAdId =
           recAdId || (zoneAds.length > 0 ? zoneAds[0].id : null);
@@ -369,7 +369,7 @@ function VisualBoard({ token: authToken, onLogout }) {
   }, [wsRecEnabled, authToken, recX, recY, recRadius, recScreenType, recAdCategory, recTimeWindow, recAdId, zoneAds]);
 
   // =====================
-  //  Βοηθητικά για επιλογές
+  //  Selection helpers
   // =====================
   function isScreenSelected(screen) {
     if (!screen) return false;
@@ -384,7 +384,7 @@ function VisualBoard({ token: authToken, onLogout }) {
     return selectedScreens.includes(screen.id);
   }
 
-  // default ad αν δεν έχει ορίσει κάτι ο τεχνικός
+  // default ad when the operator has not chosen one
   function getAdForScreen(index, screen) {
     if (placements[screen.id]) {
       return placements[screen.id];
@@ -478,17 +478,17 @@ function VisualBoard({ token: authToken, onLogout }) {
     if (!currentZone) return;
 
     if (!mosaicMode) {
-      alert("Ενεργοποίησε πρώτα το Mosaic mode.");
+      alert("Enable Mosaic mode first.");
       return;
     }
 
     if (!mosaicSelectedAdId) {
-      alert("Επίλεξε πρώτα διαφήμιση για το mosaic.");
+      alert("Pick an advertisement for the mosaic first.");
       return;
     }
 
     if (selectedScreens.length === 0) {
-      alert("Επίλεξε πρώτα οθόνες για το mosaic.");
+      alert("Pick screens for the mosaic first.");
       return;
     }
 
@@ -496,7 +496,7 @@ function VisualBoard({ token: authToken, onLogout }) {
       selectedScreens.includes(s.id)
     );
     if (screensInZone.length === 0) {
-      alert("Δεν βρέθηκαν οθόνες για mosaic.");
+      alert("No screens found for the mosaic.");
       return;
     }
 
@@ -510,20 +510,20 @@ function VisualBoard({ token: authToken, onLogout }) {
     const expectedCount = (maxRow - minRow + 1) * (maxCol - minCol + 1);
     if (expectedCount !== screensInZone.length) {
       alert(
-        "Για Mosaic, οι οθόνες πρέπει να σχηματίζουν ένα συνεχόμενο ορθογώνιο (χωρίς κενά)."
+        "For a mosaic the screens must form one solid rectangle, with no gaps."
       );
       return;
     }
 
     const ad = zoneAds.find((a) => a.id === mosaicSelectedAdId);
     if (!ad) {
-      alert("Δεν βρέθηκε η διαφήμιση για mosaic.");
+      alert("Advertisement for the mosaic not found.");
       return;
     }
 
     const imageUrl = resolveAdImageUrl(ad);
     if (!imageUrl) {
-      alert("Η διαφήμιση δεν έχει διαθέσιμη εικόνα για mosaic.");
+      alert("This advertisement has no image available for a mosaic.");
       return;
     }
 
@@ -599,7 +599,7 @@ function VisualBoard({ token: authToken, onLogout }) {
       setRecommendedScreenId(data.screen_id);
     } catch (err) {
       console.error("Recommendation error (generic):", err);
-      setRecError("Σφάλμα στο recommendation (γενικό).");
+      setRecError("Recommendation request failed.");
       clearRecommendation();
     } finally {
       setRecLoading(false);
@@ -608,7 +608,7 @@ function VisualBoard({ token: authToken, onLogout }) {
 
   async function handleRecommendForAd() {
     if (!recAdId) {
-      alert("Επίλεξε πρώτα διαφήμιση για recommendation.");
+      alert("Pick an advertisement for the recommendation first.");
       return;
     }
     setRecLoading(true);
@@ -634,7 +634,7 @@ function VisualBoard({ token: authToken, onLogout }) {
       setRecommendedScreenId(data.screen_id);
     } catch (err) {
       console.error("Recommendation error (ad):", err);
-      setRecError("Σφάλμα στο recommendation για συγκεκριμένη διαφήμιση.");
+      setRecError("Recommendation for this advertisement failed.");
       clearRecommendation();
     } finally {
       setRecLoading(false);
@@ -643,7 +643,7 @@ function VisualBoard({ token: authToken, onLogout }) {
 
   // =====================
   //  Near query handlers (/layout/query/near)
-  //  FIX: προστέθηκε Bearer header
+  //  Sends the Bearer header
   // =====================
   async function handleNearQuery() {
     if (!selectedZoneId) return;
@@ -665,7 +665,7 @@ function VisualBoard({ token: authToken, onLogout }) {
       setNearResults(data);
     } catch (err) {
       console.error("Near query error:", err);
-      setNearError("Σφάλμα στο near query.");
+      setNearError("Near query failed.");
       setNearResults([]);
     } finally {
       setNearLoading(false);
@@ -674,7 +674,7 @@ function VisualBoard({ token: authToken, onLogout }) {
 
   // =====================
   //  MultiIndex inspector handlers
-  //  FIX: προστέθηκε Bearer header
+  //  Sends the Bearer header
   // =====================
   async function handleLoadMultiIndex() {
     setMiLoading(true);
@@ -693,7 +693,7 @@ function VisualBoard({ token: authToken, onLogout }) {
       setMultiIndexKeys(data);
     } catch (err) {
       console.error("MultiIndex error:", err);
-      setMiError("Σφάλμα στο φόρτωμα MultiIndex keys.");
+      setMiError("Could not load the MultiIndex keys.");
       setMultiIndexKeys([]);
     } finally {
       setMiLoading(false);
@@ -721,7 +721,7 @@ function VisualBoard({ token: authToken, onLogout }) {
       setGisResults(data);
     } catch (err) {
       console.error("PostGIS query error:", err);
-      setGisError("Σφάλμα στο PostGIS query.");
+      setGisError("PostGIS query failed.");
       setGisResults([]);
     } finally {
       setGisLoading(false);
@@ -749,7 +749,7 @@ function VisualBoard({ token: authToken, onLogout }) {
       setDistResults(data);
     } catch (err) {
       console.error("Distributed query error:", err);
-      setDistError("Σφάλμα στο Distributed query.");
+      setDistError("Distributed query failed.");
       setDistResults([]);
     } finally {
       setDistLoading(false);
@@ -771,7 +771,7 @@ function VisualBoard({ token: authToken, onLogout }) {
       setBenchResults(data);
     } catch (err) {
       console.error("Benchmark error:", err);
-      setBenchError("Σφάλμα κατά το benchmark.");
+      setBenchError("Benchmark failed.");
     } finally {
       setBenchLoading(false);
     }

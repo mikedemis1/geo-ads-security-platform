@@ -6,11 +6,11 @@ from pydantic import BaseModel
 
 class AdPlacement(BaseModel):
     """
-    Μια ενεργή ανάθεση:
-    - ποια διαφήμιση (ad_id)
-    - σε ποια οθόνη (screen_id, zone_id)
-    - με ποια χαρακτηριστικά του multi-index
-    - πότε έγινε η ανάθεση (assigned_at)
+    An active placement:
+    - which advertisement (ad_id)
+    - on which screen (screen_id, zone_id)
+    - with which multi-index attributes
+    - when it was assigned (assigned_at)
     """
 
     ad_id: int

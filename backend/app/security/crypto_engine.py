@@ -9,9 +9,9 @@ from typing import Optional, Union
 
 class CryptoMode(str, Enum):
     """
-    Υποστηριζόμενα modes υπογραφής.
-    - HMAC_SHA256: κλασικό HMAC πάνω από SHA-256 (SHA-2 οικογένεια).
-    - HMAC_SHA3_256: HMAC πάνω από SHA3-256 (SHA-3 οικογένεια).
+    Supported signing modes.
+    - HMAC_SHA256: HMAC over SHA-256 (SHA-2 family).
+    - HMAC_SHA3_256: HMAC over SHA3-256 (SHA-3 family).
     """
     HMAC_SHA256 = "HMAC_SHA256"
     HMAC_SHA3_256 = "HMAC_SHA3_256"
@@ -19,24 +19,24 @@ class CryptoMode(str, Enum):
 
 def _resolve_mode_from_env() -> CryptoMode:
     """
-    Διαβάζει το CRYPTO_MODE από το περιβάλλον και επιστρέφει CryptoMode.
-    Αν η τιμή είναι άκυρη ή δεν δοθεί, πέφτει στο HMAC_SHA256.
+    Read CRYPTO_MODE from the environment and return a CryptoMode.
+    Falls back to HMAC_SHA256 when the value is missing or invalid.
     """
     raw = os.getenv("CRYPTO_MODE", CryptoMode.HMAC_SHA256.value)
     try:
         return CryptoMode(raw)
     except ValueError:
-        # Σε σοβαρό σύστημα θα το κάναμε log ως misconfiguration.
+        # A production system should log this as a misconfiguration.
         return CryptoMode.HMAC_SHA256
 
 
 class CryptoEngine:
     """
-    CryptoEngine = ενιαίο interface για υπογραφή & επαλήθευση.
+    One interface for signing and verification.
 
-    - Χρησιμοποιείται για HMAC σήμερα.
-    - Μπορεί να επεκταθεί αύριο με post-quantum signature engine ή KEM
-      χωρίς να αλλάξουν τα σημεία που το καλούν (crypto-agility).
+    - Used for HMAC today.
+    - Can be extended with a post-quantum signature scheme or KEM later
+      without changing the call sites (crypto-agility).
     """
 
     def __init__(self, mode: Union[CryptoMode, str, None] = None) -> None:
@@ -54,27 +54,27 @@ class CryptoEngine:
     @property
     def algorithm_name(self) -> str:
         """
-        Ονομα αλγορίθμου που θα γράφουμε στα headers (π.χ. "HMAC_SHA256").
+        Algorithm name written into message headers (e.g. "HMAC_SHA256").
         """
         return self.mode.value
 
     def _get_digestmod(self):
         """
-        Επιστρέφει τη σωστή συνάρτηση hash από το hashlib
-        ανάλογα με το επιλεγμένο mode.
+        Return the hashlib function that matches the selected mode.
+
         """
         if self.mode == CryptoMode.HMAC_SHA256:
             return hashlib.sha256
         elif self.mode == CryptoMode.HMAC_SHA3_256:
             return hashlib.sha3_256
         else:
-            # Θεωρητικά δεν φτάνουμε ποτέ εδώ αν έχουν καλυφθεί όλα τα modes.
+            # Unreachable as long as every mode is handled above.
             raise ValueError(f"Unsupported crypto mode: {self.mode}")
 
     @staticmethod
     def _normalize_secret(secret_key: Union[str, bytes]) -> bytes:
         """
-        Δέχεται secret ως str ή bytes και το γυρνάει σε bytes.
+        Accept the secret as str or bytes and return bytes.
         """
         if isinstance(secret_key, bytes):
             return secret_key
@@ -82,10 +82,10 @@ class CryptoEngine:
 
     def sign(self, message: bytes, secret_key: Union[str, bytes]) -> str:
         """
-        Υπογράφει το message με HMAC και επιστρέφει το digest σε hex string.
+        Sign the message with HMAC and return the digest as a hex string.
 
-        - message: τα bytes που θέλουμε να προστατεύσουμε (header+payload).
-        - secret_key: το shared secret του node (per-node key).
+        - message: the bytes to protect (header + payload).
+        - secret_key: the node's shared secret.
         """
         key_bytes = self._normalize_secret(secret_key)
         digestmod = self._get_digestmod()
@@ -94,25 +94,25 @@ class CryptoEngine:
 
     def verify(self, message: bytes, signature_hex: str, secret_key: Union[str, bytes]) -> bool:
         """
-        Επαληθεύει την υπογραφή.
+        Verify a signature.
 
-        - Υπολογίζει HMAC πάνω στο message με το secret.
-        - Χρησιμοποιεί constant-time σύγκριση (hmac.compare_digest)
-          για προστασία από timing attacks.
+        - Recomputes the HMAC over the message with the secret.
+        - Compares in constant time (hmac.compare_digest)
+          to avoid timing attacks.
         """
         expected = self.sign(message, secret_key)
         # constant-time compare
         return hmac.compare_digest(expected, signature_hex)
 
 
-# Optional singleton για να μην φτιάχνουμε εκατό instances
+# Shared instance so the whole app uses one CRYPTO_MODE
 _engine_singleton: Optional[CryptoEngine] = None
 
 
 def get_crypto_engine() -> CryptoEngine:
     """
-    Επιστρέφει ένα shared CryptoEngine instance.
-    Το χρησιμοποιούμε παντού, ώστε να έχουμε ενιαίο CRYPTO_MODE.
+    Return the shared CryptoEngine instance.
+    Used everywhere so that one CRYPTO_MODE applies across the app.
     """
     global _engine_singleton
     if _engine_singleton is None:
