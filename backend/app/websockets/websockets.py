@@ -1,6 +1,7 @@
 import asyncio
-import json
 import hashlib
+import json
+import logging
 import time
 from datetime import datetime, timezone
 from typing import Optional, Set
@@ -13,7 +14,7 @@ from app.services.placement_service import PlacementService
 from app.services.layout_service import get_screen_index
 
 # Security (Milestone v1)
-from app.security.jwt_service import decode_and_verify, require_scopes, AuthError
+from app.security.jwt_service import decode_and_verify, require_scopes, require_token_type, AuthError
 
 # Security (Milestone v2c)
 from app.security.message_schema import SignedMessage
@@ -22,14 +23,14 @@ from app.security.auth_config import ADMIN_TOKEN_SECRET
 router = APIRouter()
 
 # ── Anti-replay store (Milestone v7) ────────────────────────
-REPLAY_WINDOW_SEC = 60   # δεχόμαστε μηνύματα μέχρι 60 δευτ. παλιά
-_NONCE_MAX_SIZE   = 5000  # ανώτατο όριο εγγραφών (anti-flood)
+REPLAY_WINDOW_SEC = 60   # messages older than this are rejected
+_NONCE_MAX_SIZE   = 5000  # cap on stored nonces (anti-flood)
 _seen_nonces: dict[str, float] = {}  # nonce → timestamp (epoch)
-_nonce_msg_count: int = 0            # μετρητής για periodic cleanup
+_nonce_msg_count: int = 0            # counter that drives periodic cleanup
 
 
 def _cleanup_old_nonces() -> None:
-    """Καθαρίζει nonces παλαιότερα από 2× το window."""
+    """Drop nonces older than twice the replay window."""
     cutoff = time.time() - (REPLAY_WINDOW_SEC * 2)
     stale = [n for n, ts in _seen_nonces.items() if ts < cutoff]
     for n in stale:
@@ -38,8 +39,8 @@ def _cleanup_old_nonces() -> None:
 
 def _check_replay(msg: SignedMessage) -> Optional[str]:
     """
-    Ελέγχει timestamp window + nonce dedup.
-    Επιστρέφει error string αν αποτύχει, None αν είναι OK.
+    Check the timestamp window and de-duplicate the nonce.
+    Returns an error string on failure, None when the message is acceptable.
     """
     global _nonce_msg_count
 
@@ -81,8 +82,8 @@ def _record_threat_event(event_type: str, source_ip: str = "unknown", details: d
         from app.security.threat_engine import get_threat_engine
         engine = get_threat_engine()
         engine.record_event(event_type=event_type, source_ip=source_ip, details=details or {})
-    except Exception:
-        pass
+    except Exception as exc:  # detection must never break the socket
+        logging.getLogger("app").warning("threat engine unavailable, event dropped: %s", exc)
 
 
 def _get_ws_ip(ws: WebSocket) -> str:
@@ -102,7 +103,7 @@ async def _handle_recommendation_payload(
     payload: dict,
 ) -> None:
     """
-    Κοινός handler για το recommendation business logic.
+    Shared handler for the recommendation logic.
     """
     ad_id = payload.get("ad_id")
     x = payload.get("x")
@@ -183,6 +184,7 @@ async def _ws_require_scope(ws: WebSocket, scopes: list[str]) -> Optional[dict]:
 
     try:
         payload = decode_and_verify(token)
+        require_token_type(payload, "access")
         require_scopes(payload, scopes)
         return payload
     except AuthError as e:
@@ -326,7 +328,7 @@ async def websocket_recommendation(ws: WebSocket):
 @router.websocket("/ws/recommendation-simple")
 async def websocket_recommendation_simple(ws: WebSocket):
     """
-    Απλοποιημένο recommendation WS για το React frontend.
+    Simplified recommendation WebSocket for the React frontend.
     """
     auth = await _ws_require_scope(ws, ["recommendation:read"])
     if auth is None:

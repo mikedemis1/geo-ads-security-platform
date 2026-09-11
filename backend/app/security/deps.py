@@ -1,6 +1,6 @@
 from fastapi import Header, HTTPException
 from typing import Iterable
-from .jwt_service import decode_and_verify, require_scopes, AuthError
+from .jwt_service import decode_and_verify, require_scopes, require_token_type, AuthError
 
 
 def require_scope(required: Iterable[str]):
@@ -12,6 +12,7 @@ def require_scope(required: Iterable[str]):
 
         try:
             payload = decode_and_verify(token)
+            require_token_type(payload, "access")
             require_scopes(payload, required)
             return payload
         except AuthError as e:

@@ -57,6 +57,18 @@ def decode_and_verify(token: str) -> Dict[str, Any]:
         raise AuthError(401, "Invalid token")
 
 
+def require_token_type(payload: Dict[str, Any], expected: str) -> None:
+    """Reject a token issued for a different purpose.
+
+    Access and refresh tokens are signed with the same key and carry the same
+    scopes; the "type" claim is the only thing separating them. Nothing read it
+    until an independent review on 2026-09-11 pointed out that a refresh token,
+    valid for 24 hours, was therefore accepted anywhere an access token was.
+    """
+    if payload.get("type") != expected:
+        raise AuthError(401, f"Expected {expected} token")
+
+
 def require_scopes(payload: Dict[str, Any], required: Iterable[str]) -> None:
     token_scopes = set((payload.get("scope") or "").split())
     if not set(required).issubset(token_scopes):
