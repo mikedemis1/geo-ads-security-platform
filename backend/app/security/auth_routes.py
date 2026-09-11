@@ -1,10 +1,12 @@
 # backend/app/security/auth_routes.py
+import logging
+
 from fastapi import APIRouter, Header, HTTPException, Request
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from .jwt_service import mint_token, mint_refresh_token, decode_and_verify, AuthError
+from .jwt_service import mint_token, mint_refresh_token, decode_and_verify, require_token_type, AuthError
 from .auth_config import ADMIN_TOKEN_SECRET, ADMIN_USER, ADMIN_PASS
 
 limiter = Limiter(key_func=get_remote_address)
@@ -58,7 +60,7 @@ async def login(request: Request, body: LoginReq):
     return {
         "access_token": mint_token(body.username, DEFAULT_SCOPES),
         "refresh_token": mint_refresh_token(body.username, DEFAULT_SCOPES),
-        "token_type": "bearer",
+        "token_type": "bearer",  # nosec B105 - OAuth2 token type, not a password
         "expires_in": 3600,
     }
 
@@ -67,8 +69,8 @@ async def login(request: Request, body: LoginReq):
 @limiter.limit("10/minute")
 async def refresh_token(request: Request, body: RefreshReq):
     """
-    Ανανέωση access token μέσω refresh token.
-    Δέχεται refresh_token, επιστρέφει νέο access_token.
+    Exchange a refresh token for a new access token.
+    Accepts refresh_token, returns a new access_token.
     """
     try:
         payload = decode_and_verify(body.refresh_token)
@@ -76,7 +78,9 @@ async def refresh_token(request: Request, body: RefreshReq):
         _record_auth_event(request, "auth_failed", "refresh_attempt")
         raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
 
-    if payload.get("type") != "refresh":
+    try:
+        require_token_type(payload, "refresh")
+    except AuthError:
         _record_auth_event(request, "auth_failed", "invalid_token_type")
         raise HTTPException(status_code=401, detail="Not a refresh token")
 
@@ -86,7 +90,7 @@ async def refresh_token(request: Request, body: RefreshReq):
     _record_auth_event(request, "auth_success", sub)
     return {
         "access_token": mint_token(sub, scopes),
-        "token_type": "bearer",
+        "token_type": "bearer",  # nosec B105 - OAuth2 token type, not a password
         "expires_in": 3600,
     }
 
@@ -102,5 +106,5 @@ def _record_auth_event(request: Request, event_type: str, username: str) -> None
             source_ip=ip,
             details={"username": username, "path": str(request.url.path)},
         )
-    except Exception:
-        pass  # threat engine not yet initialized — silently skip
+    except Exception as exc:  # detection must never block authentication
+        logging.getLogger("app").warning("threat engine unavailable, auth event dropped: %s", exc)
