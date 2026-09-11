@@ -1,182 +1,132 @@
-# GEO-ADS — Real-Time Geo-Targeted Ad Management System
+# GEO-ADS
 
-<div align="center">
+Real-time ad placement for a smart stadium, with the security layer I built on top of it for my diploma thesis at the University of Patras (graded 10/10).
 
-![Type](https://img.shields.io/badge/Type-Diploma%20Thesis-blue?style=for-the-badge)
-![Backend](https://img.shields.io/badge/Backend-FastAPI-green?style=for-the-badge&logo=fastapi)
-![DB](https://img.shields.io/badge/Database-PostgreSQL%20%2B%20PostGIS-336791?style=for-the-badge&logo=postgresql)
-![Frontend](https://img.shields.io/badge/Frontend-React-61DAFB?style=for-the-badge&logo=react)
-![Desktop](https://img.shields.io/badge/Desktop-Electron-47848F?style=for-the-badge&logo=electron)
+![Backend](https://img.shields.io/badge/backend-FastAPI-green) ![DB](https://img.shields.io/badge/database-PostgreSQL%20%2B%20PostGIS-336791) ![Frontend](https://img.shields.io/badge/frontend-React-61DAFB) ![CI](https://github.com/mikedemis1/geo-ads-security-platform/actions/workflows/ci.yml/badge.svg)
 
-</div>
+## What it does
 
----
+A stadium has three kinds of screen: a glass floor in the centre, banners around the perimeter, and a megatron. An ad request comes in with a position, the backend finds the best screen near that position, assigns the ad, and pushes the placement to every connected client over WebSocket.
 
-## Project Overview
+The thesis had two questions. First, which spatial index answers "what is near this point" fastest: an R-Tree, a KD-Tree, a hashed grid, PostGIS, or a fan-out over simulated shards. Second, when the system is attacked, which detector notices first: fixed threshold rules or a Z-score anomaly detector. Both questions have live endpoints you can hit to see the numbers.
 
-GEO-ADS is a real-time advertisement management system built for a smart stadium environment. The idea is to automatically assign ads to the right screen at the right time based on spatial proximity — using multiple indexing strategies and comparing their performance.
-
-The stadium has three screen zones: a glass floor, surrounding perimeter banners, and a megatron. The system receives ad requests, finds the best matching screen using spatial queries, assigns the ad, and broadcasts the placement live to all connected clients via WebSocket.
-
-On top of the core placement logic, the system includes a full security layer: JWT authentication with fine-grained scopes, rate limiting, HMAC-signed WebSocket messages with anti-replay protection, and a hybrid threat detection engine that runs rule-based and statistical (Z-score) detectors in parallel.
-
-### What This Project Covers
-
-- Spatial indexing with R-Tree, KD-Tree, Grid, PostGIS GIST, and a Distributed (MapReduce-style) index
-- Real-time ad placement via spatial recommendation + WebSocket broadcast
-- JWT authentication with OAuth2-style scopes for both HTTP and WebSocket
-- Hybrid threat detection: rule-based thresholds vs. Z-score statistical anomaly detection
-- Audit logging of every HTTP request with timing and user identity
-- Live benchmark endpoint comparing all spatial index methods head-to-head
-- React frontend with a visual board, login page, and security dashboard
-- Electron desktop wrapper that runs the whole system locally
-
----
+Everything in the security layer exists because the first version of this API was wide open: no login, no signing on the WebSocket, nothing recorded. The sections below describe what was added and, just as important, what it does not cover.
 
 ## Architecture
 
 ```
-                    ┌──────────────────────────────────┐
-                    │        Electron Desktop App       │
-                    │  (wraps React UI + starts backend)│
-                    └───────────────┬──────────────────┘
-                                    │
-                    ┌───────────────▼──────────────────┐
-                    │          React Frontend           │
-                    │  VisualBoard / SecurityDashboard  │
-                    └───────────────┬──────────────────┘
-                               HTTP │ WebSocket
-                    ┌───────────────▼──────────────────┐
-                    │          FastAPI Backend          │
-                    │                                  │
-                    │  ┌──────────────────────────┐    │
-                    │  │   Spatial Index Engine   │    │
-                    │  │  R-Tree · KD-Tree · Grid │    │
-                    │  │  PostGIS · Distributed   │    │
-                    │  └──────────────────────────┘    │
-                    │                                  │
-                    │  ┌──────────────────────────┐    │
-                    │  │      Security Layer      │    │
-                    │  │  JWT · Rate Limit · HMAC │    │
-                    │  │  ThreatEngine(Rule+Zscore)│   │
-                    │  └──────────────────────────┘    │
-                    │                                  │
-                    │  ┌──────────────────────────┐    │
-                    │  │    Placement Service     │    │
-                    │  │ in-memory · WS broadcast │    │
-                    │  └──────────────────────────┘    │
-                    └───────────────┬──────────────────┘
-                                    │
-                    ┌───────────────▼──────────────────┐
-                    │      PostgreSQL + PostGIS         │
-                    │   advertisements · screens        │
-                    └──────────────────────────────────┘
+Electron desktop app  (wraps the React UI, starts the backend)
+        |
+React operator console  (VisualBoard, SecurityDashboard, Login)
+        |  HTTP + WebSocket
+FastAPI backend
+   |-- spatial index engine   R-Tree, KD-Tree, grid, PostGIS, distributed
+   |-- security layer         JWT scopes, rate limits, HMAC + anti-replay, threat engine
+   |-- placement service      in-memory, broadcasts over WebSocket
+        |
+PostgreSQL 16 + PostGIS 3.4   (advertisements, screens with WGS-84 coordinates)
 ```
 
----
+## Spatial index engine
 
-## Components
+Five ways to answer the same query, so they can be compared on the same data at `/benchmark/spatial`:
+
+- **R-Tree** (`rtree`), the default for recommendations. Bounding-box query, then an exact circular check.
+- **KD-Tree** (`scipy.spatial.KDTree`). Same complexity, different partitioning.
+- **Grid**. The venue is split into fixed cells; a query touches only the cells that intersect the search box.
+- **PostGIS `ST_DWithin`** with a GIST index, on real latitude and longitude, inside the database.
+- **Distributed**. One shard per zone, each with its own R-Tree, queried in parallel and merged by distance. A MapReduce shape simulated in one process.
+
+## Security layer
+
+Several independent controls, each covering a different way in. The details, the threat model and the limits are in [docs/THREAT_MODEL.md](docs/THREAT_MODEL.md); this is the short version.
+
+**Authentication and scopes.** Every HTTP route except `/health` and `/` needs a Bearer JWT (HS256, issuer and audience pinned, expiry required). Tokens carry OAuth2-style scopes such as `ads:read`, `placements:write`, `security:read`. A token without the scope a route needs gets a 403 before the handler runs. `/auth/login` issues a one-hour access token and a 24-hour refresh token; `/auth/token` mints a token with chosen scopes for whoever holds the admin secret.
+
+**Rate limiting.** Per source IP, with `slowapi`: 10 per minute on `/auth/login` and `/auth/refresh`, 5 per minute on `/auth/token`. A 429 is also recorded as a `rate_limited` security event so the detectors can correlate it.
+
+**WebSocket handshake.** Every socket needs a JWT with the right scope on connect, or it is closed with 4401 (no or bad token) or 4403 (wrong scope).
+
+**Message integrity and anti-replay.** Controller messages on `/ws/recommendation` are signed with HMAC-SHA256 over header plus payload and verified in constant time. Each message carries a timestamp and a nonce; anything older than 60 seconds, from the future, or with a nonce already seen is rejected. The hash can be switched to SHA3-256 with `CRYPTO_MODE` without touching the code.
+
+**Threat detection.** Two detectors run on every security event:
+
+| Detector | How it works | Catches |
+|---|---|---|
+| Rule-based | Per-IP counts inside a time window: 10 distinct usernames in 10 minutes, 5 failed logins in 5 minutes, 3 replays in 5 minutes, 20 rate-limit hits in 10 minutes | Credential stuffing, brute force, replay bursts, rate abuse |
+| Statistical | Z-score of the current event rate against a rolling baseline over 5, 15 and 60 minute windows; alerts above 2 standard deviations | Bursts that match no rule |
+
+Rules are fast and precise but only know the patterns you wrote down. The statistical path needs no rules and pays for that with false positives, including one right after startup that the tests document. `/security/comparison` shows detection counts and latency for both side by side.
+
+**Headers, CORS, audit.** Every response carries `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, a Content-Security-Policy, `Referrer-Policy` and the legacy `X-XSS-Protection`. CORS is an explicit allow-list from `ALLOWED_ORIGINS`. Every request is written as one JSON line to `audit.log` with method, path, status, timing and the token subject.
+
+## Tests
+
+`backend/tests/` holds 65 tests over the security layer. They run against the real app without a database, because none of the routes they use touch PostgreSQL.
 
 ```
-Core Placement          (Completed)
-         ↓
-Spatial Index Engine    (Completed)
-         ↓
-JWT Auth + WS Security  (Completed)
-         ↓
-Threat Detection Engine (Completed)
-         ↓
-React UI + Electron     (Completed)
+cd backend
+pip install -r requirements.txt -r requirements-dev.txt
+python -m pytest
 ```
 
----
+What they cover: token minting and every way a token can be wrong; missing, malformed and under-scoped bearer headers; the admin secret; refresh tokens used as access tokens; the sixth request in a minute; the security headers on success and error responses; WebSocket close codes; tampered, wrongly signed, replayed, stale and future-dated messages; SHA-2 versus SHA-3 signatures; both detectors; event eviction; that a refresh token is refused wherever an access token is expected, that a malformed zone id is rejected before it reaches the database, and that the app refuses to start without a database password or with a short JWT secret.
 
-## Core Placement
+## What the tests found
 
-### `placement_service.py`
-In-memory ad assignment engine. Receives a spatial recommendation (screen + zone), creates a placement record, and triggers a WebSocket broadcast so all connected clients see the new assignment in real time.
+Four things, and the order they were found in says something about how to look.
 
-### `websockets.py`
-WebSocket manager that handles client connections and broadcasts `placement_assigned` events. All WS connections require a signed JWT token validated on handshake.
+**A refresh token worked as an access token.** Both kinds are signed with the
+same key and carry the same scopes; the `type` claim is the only thing that
+separates them, and nothing was reading it. So a refresh token, valid for 24
+hours, was accepted on every protected route and on the WebSocket handshake,
+where an access token lasts one hour. Anyone holding one had a day of access
+instead of an hour.
 
----
+My own suite missed this. I had written the test for the direction I had thought
+about — an access token presented at `/auth/refresh`, which was already
+rejected — and never wrote the mirror image. It was found on 11 September 2026
+by an independent review of this repository, and the fix is a single
+`require_token_type` check applied everywhere a token is accepted. The
+WebSocket test output is the clearest record of the bug: with a refresh token
+the socket opened as `sub=admin`, the message signature verified, the replay
+check passed, and the recommendation flow ran.
 
-## Spatial Index Engine
+**Credential stuffing was hidden behind brute force.** Both rules watch failed
+logins, the detector returns the first rule that matches, and brute force was
+listed first with the lower threshold. Ten different usernames from one address
+came back as brute force.
 
-Five indexing strategies are implemented and can be benchmarked live via `/benchmark/spatial`.
+I first wrote that the stuffing rule "could never fire". That was wrong, and the
+same review asked for proof. The two rules have different windows, five minutes
+against ten, so a slow attacker whose recent rate had dropped below five still
+reached the stuffing rule under the old order. What the old order actually broke
+is the common case, because ten attempts inside ten minutes almost always put
+five inside some five-minute window. Both shapes now have a test, including the
+one that disproves the original claim.
 
-### R-Tree (`rtree` library)
-In-memory spatial index. O(log n) range queries. Used as the default for ad screen recommendation.
+**A null byte reached the database driver.** An authenticated ZAP scan driven by
+the OpenAPI definition sent `zone_id=%00` to `/layout/postgis/near`. It travelled
+through the service layer into psycopg2 and came back as a 500. Zone ids are
+plain identifiers, so the shape is now pinned at the boundary and the request is
+a 422.
 
-### KD-Tree (`scipy.spatial.KDTree`)
-Alternative in-memory index. Efficient for nearest-neighbour lookups in low-dimensional space.
+**Two smaller ones.** The old README said login was limited to 5 requests a
+minute; the code says 10. And a default database password sat in `config.py` and
+in `docker-compose.yml`. Both now refuse to start without one, and a test guards
+against it coming back.
 
-### Grid Index
-The venue is divided into fixed-size cells. Queries check only the relevant cells — O(1) cell lookup, then linear scan within the cell.
+## Scanners
 
-### PostGIS GIST (`ST_DWithin`)
-Database-level spatial query using a GIST index on WGS-84 coordinates. Comparable to the R-Tree but runs inside PostgreSQL.
+Every push runs Semgrep (`p/python`, `p/security-audit`, `p/secrets`) and Bandit over the backend, blocking on any finding, and an OWASP ZAP baseline scan against the live API with a real PostGIS container. The ZAP job is informational; its findings and their triage are in [docs/security/zap-baseline.md](docs/security/zap-baseline.md). Bandit's first run found four places that swallowed exceptions silently; they now log a warning instead.
 
-### Distributed Index (MapReduce simulation)
-Simulates a distributed system by partitioning screens across virtual nodes and fanning out queries in parallel. Results are merged and deduplicated.
-
----
-
-## Security Layer
-
-The security layer is designed around the principle of **defence in depth** — multiple independent mechanisms protect the system at different levels. Each layer addresses a distinct attack surface.
-
-### JWT Authentication & Authorization
-All HTTP endpoints and WebSocket connections require a signed Bearer token (HS256). Tokens carry fine-grained **OAuth2-style scopes** (`ads:read`, `placements:write`, `security:read`, etc.) embedded as claims. The `/auth/token` endpoint issues short-lived **access tokens** (1h) and long-lived **refresh tokens** (24h). Scope violations return HTTP 403 before any business logic runs.
-
-### Rate Limiting
-The login endpoint is rate-limited to **5 requests per minute per IP** using `slowapi`. This directly mitigates brute-force and credential stuffing attacks. Any request that triggers a 429 Too Many Requests response is automatically forwarded to the Threat Detection Engine as a `rate_limited` event for correlation with other signals.
-
-### WebSocket Message Integrity — HMAC + Anti-Replay
-WebSocket connections introduce a separate attack surface beyond standard HTTP. Each message is signed with **HMAC-SHA256** using a shared secret. The server validates the signature on receipt, rejecting any message where the MAC does not match (tampering detection). Additionally, a **timestamp + nonce** window of 60 seconds prevents replay attacks — a captured message cannot be re-sent after the window expires. The system supports **crypto agility**: the hash function can be switched between SHA-256 and SHA3-256 via the `CRYPTO_MODE` environment variable without code changes.
-
-### Threat Detection Engine (`threat_engine.py`)
-A hybrid detector running two independent strategies in parallel on the same event stream:
-
-| Strategy | Algorithm | Detects |
-|----------|-----------|---------|
-| Rule-Based | Fixed threshold per IP per time window | Brute force, credential stuffing, replay abuse |
-| Statistical | Z-score on rolling event rate (sliding window) | Anomalous spikes deviating > 2σ from baseline |
-
-**Why two detectors?** Rule-based detectors are fast and precise for known attack patterns but blind to novel threats. Statistical detectors catch anomalies without predefined rules but can produce false positives on legitimate traffic spikes. Running both in parallel and comparing results is the core research question of this project.
-
-Security events include: `auth_failed`, `auth_success`, `rate_limited`, `replay_detected`, `hmac_failed`, `ws_auth_failed`. Every event records the source IP, timestamp, and detection method. The `/security/comparison` endpoint exposes side-by-side detection latency and alert counts for both methods.
-
-### Security Headers Middleware
-Every HTTP response includes hardened headers applied at the middleware level:
-
-| Header | Value |
-|--------|-------|
-| `X-Frame-Options` | `DENY` — prevents clickjacking |
-| `X-Content-Type-Options` | `nosniff` — prevents MIME sniffing |
-| `X-XSS-Protection` | `1; mode=block` — legacy XSS filter |
-| `Content-Security-Policy` | Restricts script, style, image, and WebSocket sources |
-| `Referrer-Policy` | `strict-origin-when-cross-origin` |
-
-### CORS Policy
-Cross-Origin Resource Sharing is configured with an explicit allowlist (`ALLOWED_ORIGINS` env var). Only GET, POST, and OPTIONS methods are permitted. Credentials are allowed exclusively for trusted origins.
-
-### Audit Log
-Every HTTP request is logged as a structured JSON line to `audit.log`:
-
-```json
-{"time": "2025-05-24T17:00:00Z", "method": "POST", "path": "/auth/token", "sub": "admin", "status": 200, "ms": 12.4}
-```
-
-This creates a tamper-evident trail of all system activity including authenticated user identity, which is useful for post-incident forensic analysis.
-
----
-
-## API Endpoints
+## API
 
 | Method | Path | Scope |
-|--------|------|-------|
-| POST | `/auth/token` | — |
+|---|---|---|
+| POST | `/auth/login` | none |
+| POST | `/auth/refresh` | none |
+| POST | `/auth/token` | admin secret header |
 | GET | `/advertisements` | `ads:read` |
 | GET | `/advertisements/zone/{zone_id}` | `ads:read` |
 | GET | `/layout` | `layout:read` |
@@ -187,79 +137,43 @@ This creates a tamper-evident trail of all system activity including authenticat
 | GET | `/benchmark/spatial` | `layout:read` |
 | GET | `/placements` | `placements:read` |
 | POST | `/placements/recommend_and_assign/advertisements/{id}` | `placements:write` |
-| GET | `/security/alerts` | `security:read` |
-| GET | `/security/events` | `security:read` |
-| GET | `/security/comparison` | `security:read` |
-| WS | `/ws/placements` | JWT required |
-| WS | `/ws/recommendation` | JWT + HMAC + Anti-Replay |
+| GET | `/security/alerts`, `/security/events`, `/security/stats`, `/security/comparison` | `security:read` |
+| WS | `/ws/placements` | JWT, `placements:read` |
+| WS | `/ws/recommendation` | JWT, `recommendation:read`, HMAC, anti-replay |
+| WS | `/ws/security` | JWT, `security:read` |
 
----
+Interactive docs are at `http://localhost:8000/docs` when the backend is running.
 
-## Stadium Zones
+## Stadium zones
 
-| Zone | Grid | Screen Type |
-|------|------|-------------|
-| GlassFloor | 4 × 4 | `glassfloor_tile` |
-| Surrounding | 2 × 4 | `surrounding_banner` |
-| Megatron | 2 × 2 | `megatron_panel` |
+| Zone | Grid | Screen type |
+|---|---|---|
+| GlassFloor | 4 x 4 | `glassfloor_tile` |
+| Surrounding | 2 x 4 | `surrounding_banner` |
+| Megatron | 2 x 2 | `megatron_panel` |
 
----
+## Running it
 
-## How to Run
+You need Docker, Python 3.11 or newer, and Node 18 or newer.
 
-**Prerequisites:** Docker, Python 3.11+, Node.js 18+
+1. Secrets. Copy `.env.example` to `.env` and `backend/.env.example` to `backend/.env`, then replace every `CHANGE_ME`. The database password must be the same in both. The app and Compose both refuse to start if anything required is missing.
+2. Database: `docker compose up -d`
+3. Backend: `cd backend && pip install -r requirements.txt && uvicorn app.main:app --reload --port 8000`
+4. Frontend: `cd frontend/geo-ads-frontend && npm install && npm start`, then open `http://localhost:3000`
+5. Desktop, optional: `cd desktop/geo-ads-desktop && npm install && npm start`
 
-**1. Start the database**
+## Limits
 
-```bash
-docker-compose up -d
-```
+The short list; the full one is in the threat model.
 
-**2. Set up environment**
+- One shared HMAC secret for all controller nodes, and it is the same value as the admin token secret.
+- HS256 means whoever can verify a token can also mint one.
+- Refresh tokens cannot be revoked before they expire.
+- Rate limits are per IP, so everyone behind one NAT shares a quota.
+- Events, alerts, nonces and placements live in memory; a restart clears them and a second instance would not share them.
+- The CSP allows `unsafe-inline`.
+- No TLS in the app itself; it expects a reverse proxy on a private network.
 
-```bash
-cp backend/.env.example backend/.env
-# Edit backend/.env — set a real JWT_SECRET
-```
+## Stack
 
-**3. Run the backend**
-
-```bash
-cd backend
-pip install -r requirements.txt
-uvicorn app.main:app --reload --port 8000
-```
-
-API docs at `http://localhost:8000/docs`
-
-**4. Run the frontend**
-
-```bash
-cd frontend/geo-ads-frontend
-npm install
-npm start
-```
-
-Frontend at `http://localhost:3000`
-
-**5. (Optional) Run the desktop app**
-
-```bash
-cd desktop/geo-ads-desktop
-npm install
-npm start
-```
-
----
-
-## Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Backend | Python 3.11, FastAPI, Uvicorn |
-| Spatial | rtree, scipy, PostGIS ST_DWithin |
-| Auth | PyJWT, slowapi |
-| Database | PostgreSQL 16 + PostGIS 3.4 (Docker) |
-| Frontend | React 18 |
-| Desktop | Electron |
-| Infrastructure | Docker, Docker Compose |
+Python 3.11, FastAPI, Uvicorn, PyJWT, slowapi, rtree, scipy, psycopg2; PostgreSQL 16 with PostGIS 3.4 in Docker; React 19; Electron; pytest, Semgrep, Bandit, OWASP ZAP in GitHub Actions.
