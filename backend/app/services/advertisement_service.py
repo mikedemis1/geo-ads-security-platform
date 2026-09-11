@@ -8,7 +8,7 @@ class AdvertisementService:
     @staticmethod
     def get_all() -> List[Advertisement]:
         """
-        Επιστρέφει ΟΛΕΣ τις διαφημίσεις από τον πίνακα advertisements.
+        Return every row of the advertisements table.
         """
         conn = get_db_connection()
         cur = conn.cursor()
@@ -40,14 +40,14 @@ class AdvertisementService:
     @staticmethod
     def get_by_zone(zone_id: str) -> List[Advertisement]:
         """
-        ΠΡΙΝ: φιλτράραμε ανά zone_id (WHERE zone = %s).
+        Before: filtered by zone_id (WHERE zone = %s).
 
-        ΤΩΡΑ: για τις ανάγκες του GEO-ADS UI,
-        θέλουμε ΟΛΕΣ οι διαφημίσεις να είναι διαθέσιμες
-        σε ΟΛΕΣ τις ζώνες (GlassFloor, Surrounding, Megatron).
+        Now: the GEO-ADS UI needs every advertisement
+        to be available in every zone
+        (GlassFloor, Surrounding, Megatron).
 
-        Άρα αγνοούμε το zone_id και επιστρέφουμε όλες τις εγγραφές.
-        Κρατάμε όμως την παράμετρο για συμβατότητα με το API.
+        So zone_id is ignored and all rows are returned.
+        The parameter stays for API compatibility.
         """
         conn = get_db_connection()
         cur = conn.cursor()
@@ -79,8 +79,8 @@ class AdvertisementService:
     @staticmethod
     def get_by_id(ad_id: int) -> Optional[Advertisement]:
         """
-        Επιστρέφει μία διαφήμιση με βάση το id.
-        Αν δεν βρεθεί, γυρνάει None.
+        Return one advertisement by id.
+        Returns None if it does not exist.
         """
         conn = get_db_connection()
         cur = conn.cursor()

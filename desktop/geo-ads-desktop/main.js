@@ -18,7 +18,7 @@ let backendLogFile = null;
 let isQuitting = false;
 let isStopping = false;
 
-// 1) Single instance (αποφεύγει διπλό backend spawn + cache issues)
+// 1) Single instance (avoids spawning the backend twice and cache clashes)
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) app.quit();
 app.on("second-instance", () => {
@@ -27,7 +27,7 @@ app.on("second-instance", () => {
   mainWindow.focus();
 });
 
-// 2) userData σε καθαρό path
+// 2) userData in a clean path
 const userDataDir = path.join(app.getPath("appData"), "GEO-ADS-Desktop");
 try { fs.mkdirSync(userDataDir, { recursive: true }); } catch {}
 app.setPath("userData", userDataDir);
@@ -124,12 +124,12 @@ async function preflightPortOrFail() {
 
   const hint =
     health === 200
-      ? `Υπάρχει ήδη service που απαντάει /health=200 στο ${HEALTH_URL}.`
-      : `Το port ${BACKEND_PORT} είναι πιασμένο αλλά δεν απαντάει /health.`;
+      ? `A service already answers /health with 200 at ${HEALTH_URL}.`
+      : `Port ${BACKEND_PORT} is taken but does not answer /health.`;
 
   const msg =
     `${hint}\n\n` +
-    `Κλείσε το process που κρατάει το port και ξανάτρεξε.\n` +
+    `Close the process holding the port and run again.\n` +
     `Windows: netstat -ano | findstr :${BACKEND_PORT}\n` +
     `        taskkill /PID <PID> /F`;
 
@@ -181,7 +181,7 @@ function startBackend() {
     appendLog(`Backend spawn error: ${String(err)}`);
     if (!isQuitting) {
       dialog.showErrorBox("GEO-ADS: Backend failed to start",
-        `Backend spawn error:\n${String(err)}\n\nΔες backend.log για λεπτομέρειες.`
+        `Backend spawn error:\n${String(err)}\n\nSee backend.log for details.`
       );
     }
     app.quit();
@@ -191,7 +191,7 @@ function startBackend() {
     appendLog(`Backend exited code=${code} signal=${signal}`);
     if (!isQuitting && !isStopping) {
       dialog.showErrorBox("GEO-ADS: Backend exited",
-        `Backend exited unexpectedly (code=${code}, signal=${signal}).\n\nΔες backend.log.`
+        `Backend exited unexpectedly (code=${code}, signal=${signal}).\n\nSee backend.log.`
       );
       app.quit();
     }
@@ -226,7 +226,7 @@ function createWindow() {
 
   if (!fs.existsSync(indexPath)) {
     dialog.showErrorBox("GEO-ADS: UI build missing",
-      `Δεν βρέθηκε:\n${indexPath}\n\nΤρέξε build (npm run build) ή npm run desktop.`
+      `Not found:\n${indexPath}\n\nRun the build (npm run build) or npm run desktop.`
     );
     app.quit();
     return;

@@ -6,26 +6,26 @@ from pydantic import BaseModel
 
 class Screen(BaseModel):
     """
-    Μοντέλο για μία οθόνη (screen) στο γήπεδο.
+    One screen in the stadium.
     """
     id: str
     zone_id: str
     row: int
     col: int
 
-    # Τύπος οθόνης (π.χ. glassfloor_tile, surrounding_banner, megatron_panel)
+    # Screen type (e.g. glassfloor_tile, surrounding_banner, megatron_panel)
     screen_type: str = "generic"
 
-    # Προαιρετικά tags (π.χ. ["premium", "vip_side"])
+    # Optional tags (e.g. ["premium", "vip_side"])
     tags: List[str] = []
 
-    # Ελεύθερο μεταδεδομένο για μελλοντική χρήση
+    # Free-form metadata for future use
     metadata: Dict[str, Any] = {}
 
 
 class Zone(BaseModel):
     """
-    Μοντέλο για ζώνη (GlassFloor, Surrounding, Megatron).
+    A zone of the stadium (GlassFloor, Surrounding, Megatron).
     """
     id: str
     name: str
@@ -37,14 +37,14 @@ class Zone(BaseModel):
 
 class MultiIndexKey(BaseModel):
     """
-    Πολυδιάστατο κλειδί για queries πάνω στις οθόνες.
+    Multi-dimensional key for querying screens.
 
-    Συνδυάζει:
+    Combines:
     - zone_id
-    - 2D θέση (x, y) στο grid
-    - τύπο οθόνης (screen_type)
-    - κατηγορία διαφήμισης (ad_category)
-    - χρονικό παράθυρο (time_window)
+    - 2D position (x, y) on the grid
+    - screen type (screen_type)
+    - advertisement category (ad_category)
+    - time window (time_window)
     """
 
     screen_id: str
@@ -53,9 +53,9 @@ class MultiIndexKey(BaseModel):
     y: float
     screen_type: str
 
-    # Προαιρετικές "λογικές" διαστάσεις
-    ad_category: Optional[str] = None     # π.χ. "tech", "sports"
-    time_window: Optional[str] = None     # π.χ. "prime_time", "halftime"
+    # Optional "logical" dimensions
+    ad_category: Optional[str] = None     # e.g. "tech", "sports"
+    time_window: Optional[str] = None     # e.g. "prime_time", "halftime"
 
     @classmethod
     def from_screen(
@@ -65,9 +65,9 @@ class MultiIndexKey(BaseModel):
         time_window: Optional[str] = None,
     ) -> "MultiIndexKey":
         """
-        Φτιάχνει ένα MultiIndexKey από ένα Screen + λογικές διαστάσεις.
+        Builds a MultiIndexKey from a Screen plus the logical dimensions.
 
-        Προς το παρόν:
+        For now:
         - x = col
         - y = row
         """
@@ -84,8 +84,8 @@ class MultiIndexKey(BaseModel):
 
 class DistributedResult(BaseModel):
     """
-    Αποτέλεσμα από το DistributedScreenIndex.
-    Περιλαμβάνει ποιος κόμβος (node) επέστρεψε αυτή την οθόνη.
+    A result from the DistributedScreenIndex.
+    Includes which node returned this screen.
     """
     screen: Screen
     distance: float
@@ -94,10 +94,10 @@ class DistributedResult(BaseModel):
 
 class ScreenRecommendation(BaseModel):
     """
-    Απλό αποτέλεσμα recommendation:
-    - ποια οθόνη επιλέχθηκε
-    - με ποια χαρακτηριστικά
-    - σε τι απόσταση από το target σημείο
+    A recommendation result:
+    - which screen was chosen
+    - with which attributes
+    - how far it is from the target point
     """
     screen_id: str
     zone_id: str

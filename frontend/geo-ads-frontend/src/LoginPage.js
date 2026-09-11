@@ -21,17 +21,17 @@ export default function LoginPage({ onLogin }) {
         body: JSON.stringify({ username, password }),
       });
       if (res.status === 429) {
-        setError("Πολλές αποτυχημένες προσπάθειες. Δοκιμάστε ξανά σε 1 λεπτό.");
+        setError("Too many failed attempts. Try again in a minute.");
         return;
       }
       if (!res.ok) {
-        setError("Λάθος username ή password.");
+        setError("Wrong username or password.");
         return;
       }
       const data = await res.json();
       onLogin(data.access_token, data.refresh_token);
     } catch {
-      setError("Δεν ήταν δυνατή η σύνδεση με τον server.");
+      setError("Could not reach the server.");
     } finally {
       setLoading(false);
     }
