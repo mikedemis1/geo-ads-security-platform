@@ -1,0 +1,101 @@
+# Backend checks on every push and pull request.
+#
+# Nothing here needs the database or any secret. The tests set their own
+# throwaway values for the required environment variables, and every route
+# they touch is served from memory.
+#
+# Semgrep and Bandit are blocking: a new finding fails the build. The ZAP
+# baseline runs against the live API with a real PostGIS container and is
+# informational, because a passive scan of a dev server produces warnings
+# (missing HSTS, CSP wording) that are documented in docs/security/ rather
+# than fixed one by one in a lab app.
+
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  test:
+    name: pytest
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+      - run: pip install -r requirements.txt -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  sast:
+    name: semgrep and bandit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install semgrep bandit
+      - name: semgrep
+        run: >
+          semgrep scan --config p/python --config p/security-audit --config p/secrets
+          --metrics=off --error --sarif --output semgrep.sarif backend/app
+      - name: bandit
+        run: bandit -r backend/app -q -f sarif -o bandit.sarif
+      - name: upload semgrep sarif
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep.sarif
+          category: semgrep
+      - name: upload bandit sarif
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: bandit.sarif
+          category: bandit
+
+  dast:
+    name: zap baseline
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: start the database
+        run: |
+          echo "POSTGRES_PASSWORD=ci-only-$(openssl rand -hex 12)" > .env
+          docker compose up -d --wait db
+      - name: start the api
+        working-directory: backend
+        run: |
+          pip install -r requirements.txt
+          cat > .env <<EOF
+          JWT_SECRET=$(openssl rand -hex 32)
+          ADMIN_TOKEN_SECRET=$(openssl rand -hex 32)
+          ADMIN_USER=admin
+          ADMIN_PASS=$(openssl rand -hex 12)
+          DB_PASSWORD=$(sed 's/^POSTGRES_PASSWORD=//' ../.env)
+          EOF
+          nohup uvicorn app.main:app --host 0.0.0.0 --port 8000 > uvicorn.log 2>&1 &
+          for i in $(seq 1 30); do curl -sf http://localhost:8000/health && break; sleep 1; done
+      - name: zap baseline
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: http://localhost:8000
+          rules_file_name: .zap/rules.tsv
+          allow_issue_writing: false
+          fail_action: false
+          artifact_name: zap-baseline
