@@ -1,0 +1,12 @@
+# Refresh-token bypass, verified fixed against the running API
+# 2026-09-11T12:06:04Z
+
+== access token on /placements (expect 200)
+   200
+== refresh token on /placements (expect 401)
+   {"detail":"Expected access token"}
+      401
+== refresh token still works where it should, on /auth/refresh (expect 200)
+   200
+== zone_id with a null byte (expect 422)
+   422

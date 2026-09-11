@@ -1,0 +1,1375 @@
+{
+	"@programName": "ZAP",
+	"@version": "2.17.0",
+	"@generated": "Fri, 11 Sept 2026 00:30:29",
+	"created": "2026-09-11T00:30:29.904769827Z",
+	"insights":[
+		{
+			"level": "Low",
+			"reason": "Warning",
+			"site": "",
+			"key": "insight.log.warn",
+			"description": "ZAP warnings logged - see the zap.log file for details",
+			"statistic": "1"
+		},
+		{
+			"level": "Low",
+			"reason": "Exceeded High",
+			"site": "http://host.docker.internal:8000",
+			"key": "insight.code.4xx",
+			"description": "Percentage of responses with status code 4xx",
+			"statistic": "85"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "http://host.docker.internal:8000",
+			"key": "insight.code.2xx",
+			"description": "Percentage of responses with status code 2xx",
+			"statistic": "14"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "http://host.docker.internal:8000",
+			"key": "insight.endpoint.ctype.application/json",
+			"description": "Percentage of endpoints with content type application/json",
+			"statistic": "100"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "http://host.docker.internal:8000",
+			"key": "insight.endpoint.method.GET",
+			"description": "Percentage of endpoints with method GET",
+			"statistic": "90"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "http://host.docker.internal:8000",
+			"key": "insight.endpoint.method.HEAD",
+			"description": "Percentage of endpoints with method HEAD",
+			"statistic": "1"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "http://host.docker.internal:8000",
+			"key": "insight.endpoint.method.POST",
+			"description": "Percentage of endpoints with method POST",
+			"statistic": "8"
+		},
+		{
+			"level": "Info",
+			"reason": "Informational",
+			"site": "http://host.docker.internal:8000",
+			"key": "insight.endpoint.total",
+			"description": "Count of total endpoints",
+			"statistic": "110"
+		}
+	],
+	"site":[ 
+		{
+			"@name": "http://host.docker.internal:8000",
+			"@host": "host.docker.internal",
+			"@port": "8000",
+			"@ssl": "false",
+			"alerts": [ 
+				{
+					"pluginid": "100000",
+					"alertRef": "100000-2",
+					"alert": "A Server Error response code was returned by the server",
+					"name": "A Server Error response code was returned by the server",
+					"riskcode": "1",
+					"confidence": "3",
+					"riskdesc": "Low (High)",
+					"desc": "<p>A response code of 500 was returned by the server.</p><p>This may indicate that the application is failing to handle unexpected input correctly.</p><p>Raised by the 'Alert on HTTP Response Code Error' script</p>",
+					"instances":[ 
+						{
+							"id": "4987",
+							"uri": "http://host.docker.internal:8000/layout/postgis/near?lat=1.2&lon=1.2&radius_m=30.0&zone_id=%00",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/postgis\/near (lat,lon,radius_m,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "500",
+							"otherinfo": ""
+						}
+					],
+					"count": "1",
+					"systemic": false,
+					"solution": "",
+					"otherinfo": "",
+					"reference": "",
+					"cweid": "388",
+					"wascid": "20",
+					"sourceid": "5856"
+				},
+				{
+					"pluginid": "90004",
+					"alertRef": "90004-1",
+					"alert": "Cross-Origin-Resource-Policy Header Missing or Invalid",
+					"name": "Cross-Origin-Resource-Policy Header Missing or Invalid",
+					"riskcode": "1",
+					"confidence": "2",
+					"riskdesc": "Low (Medium)",
+					"desc": "<p>Cross-Origin-Resource-Policy header is an opt-in header designed to counter side-channels attacks like Spectre. Resource should be specifically set as shareable amongst different origins.</p>",
+					"instances":[ 
+						{
+							"id": "329",
+							"uri": "http://host.docker.internal:8000/advertisements/zone/zone_id",
+							"nodeName": "http:\/\/host.docker.internal:8000\/advertisements\/zone\/zone_id",
+							"method": "GET",
+							"param": "Cross-Origin-Resource-Policy",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
+							"id": "331",
+							"uri": "http://host.docker.internal:8000/layout",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout",
+							"method": "GET",
+							"param": "Cross-Origin-Resource-Policy",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
+							"id": "338",
+							"uri": "http://host.docker.internal:8000/layout/query/near?x=1.2&y=1.2&radius=1.5&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/query\/near (radius,x,y,zone_id)",
+							"method": "GET",
+							"param": "Cross-Origin-Resource-Policy",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
+							"id": "334",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/screens",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/screens",
+							"method": "GET",
+							"param": "Cross-Origin-Resource-Policy",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						},
+						{
+							"id": "4",
+							"uri": "http://host.docker.internal:8000/openapi.json",
+							"nodeName": "http:\/\/host.docker.internal:8000\/openapi.json",
+							"method": "GET",
+							"param": "Cross-Origin-Resource-Policy",
+							"attack": "",
+							"evidence": "",
+							"otherinfo": ""
+						}
+					],
+					"count": "5",
+					"systemic": true,
+					"solution": "<p>Ensure that the application/web server sets the Cross-Origin-Resource-Policy header appropriately, and that it sets the Cross-Origin-Resource-Policy header to 'same-origin' for all web pages.</p><p>'same-site' is considered as less secured and should be avoided.</p><p>If resources must be shared, set the header to 'cross-origin'.</p><p>If possible, ensure that the end user uses a standards-compliant and modern web browser that supports the Cross-Origin-Resource-Policy header (https://caniuse.com/mdn-http_headers_cross-origin-resource-policy).</p>",
+					"otherinfo": "",
+					"reference": "<p>https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cross-Origin-Embedder-Policy</p>",
+					"cweid": "693",
+					"wascid": "14",
+					"sourceid": "11"
+				},
+				{
+					"pluginid": "10096",
+					"alertRef": "10096",
+					"alert": "Timestamp Disclosure - Unix",
+					"name": "Timestamp Disclosure - Unix",
+					"riskcode": "1",
+					"confidence": "1",
+					"riskdesc": "Low (Low)",
+					"desc": "<p>A timestamp was disclosed by the application/web server. - Unix</p>",
+					"instances":[ 
+						{
+							"id": "350",
+							"uri": "http://host.docker.internal:8000/security/alerts",
+							"nodeName": "http:\/\/host.docker.internal:8000\/security\/alerts",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "1789086587",
+							"otherinfo": "1789086587, which evaluates to: 2026-09-11 00:29:47."
+						},
+						{
+							"id": "352",
+							"uri": "http://host.docker.internal:8000/security/events?event_type=&limit=100",
+							"nodeName": "http:\/\/host.docker.internal:8000\/security\/events (event_type,limit)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "1789086568",
+							"otherinfo": "1789086568, which evaluates to: 2026-09-11 00:29:28."
+						},
+						{
+							"id": "353",
+							"uri": "http://host.docker.internal:8000/security/events?event_type=&limit=100",
+							"nodeName": "http:\/\/host.docker.internal:8000\/security\/events (event_type,limit)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "1789086587",
+							"otherinfo": "1789086587, which evaluates to: 2026-09-11 00:29:47."
+						}
+					],
+					"count": "3",
+					"systemic": false,
+					"solution": "<p>Manually confirm that the timestamp data is not sensitive, and that the data cannot be aggregated to disclose exploitable patterns.</p>",
+					"otherinfo": "<p>1789086587, which evaluates to: 2026-09-11 00:29:47.</p>",
+					"reference": "<p>https://cwe.mitre.org/data/definitions/200.html</p>",
+					"cweid": "497",
+					"wascid": "13",
+					"sourceid": "44"
+				},
+				{
+					"pluginid": "100000",
+					"alertRef": "100000-1",
+					"alert": "A Client Error response code was returned by the server",
+					"name": "A Client Error response code was returned by the server",
+					"riskcode": "0",
+					"confidence": "3",
+					"riskdesc": "Informational (High)",
+					"desc": "<p>A response code of 404 was returned by the server.</p><p>This may indicate that the application is failing to handle unexpected input correctly.</p><p>Raised by the 'Alert on HTTP Response Code Error' script</p>",
+					"instances":[ 
+						{
+							"id": "9",
+							"uri": "http://host.docker.internal:8000/8739092542822560884",
+							"nodeName": "http:\/\/host.docker.internal:8000\/8739092542822560884",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "5023",
+							"uri": "http://host.docker.internal:8000/actuator/health",
+							"nodeName": "http:\/\/host.docker.internal:8000\/actuator\/health",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "10",
+							"uri": "http://host.docker.internal:8000/advertisements/3146702003473010262",
+							"nodeName": "http:\/\/host.docker.internal:8000\/advertisements\/3146702003473010262",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "32",
+							"uri": "http://host.docker.internal:8000/advertisements/zone",
+							"nodeName": "http:\/\/host.docker.internal:8000\/advertisements\/zone",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4343",
+							"uri": "http://host.docker.internal:8000/advertisements/zone/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/advertisements\/zone\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "35",
+							"uri": "http://host.docker.internal:8000/auth",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4346",
+							"uri": "http://host.docker.internal:8000/auth/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "11",
+							"uri": "http://host.docker.internal:8000/auth/931679626118957789",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/931679626118957789",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "39",
+							"uri": "http://host.docker.internal:8000/benchmark",
+							"nodeName": "http:\/\/host.docker.internal:8000\/benchmark",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4347",
+							"uri": "http://host.docker.internal:8000/benchmark/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/benchmark\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "12",
+							"uri": "http://host.docker.internal:8000/benchmark/4687927879428230218",
+							"nodeName": "http:\/\/host.docker.internal:8000\/benchmark\/4687927879428230218",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "44",
+							"uri": "http://host.docker.internal:8000/benchmark/spatial?x=http%3A%2F%2Fwww.google.com%2F&y=2.0&radius=10.0&lat=38.2467&lon=21.7346&radius_m=50.0&repeats=20",
+							"nodeName": "http:\/\/host.docker.internal:8000\/benchmark\/spatial (lat,lon,radius,radius_m,repeats,x,y)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "3226",
+							"uri": "http://host.docker.internal:8000/computeMetadata/v1/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/computeMetadata\/v1\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "3221",
+							"uri": "http://host.docker.internal:8000/latest/meta-data/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/latest\/meta-data\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "13",
+							"uri": "http://host.docker.internal:8000/layout/3732503658703144968",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/3732503658703144968",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "46",
+							"uri": "http://host.docker.internal:8000/layout/distributed",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/distributed",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4349",
+							"uri": "http://host.docker.internal:8000/layout/distributed/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/distributed\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "14",
+							"uri": "http://host.docker.internal:8000/layout/distributed/2842556416291609856",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/distributed\/2842556416291609856",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4351",
+							"uri": "http://host.docker.internal:8000/layout/distributed/near",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/distributed\/near",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "54",
+							"uri": "http://host.docker.internal:8000/layout/distributed/near?x=http%3A%2F%2Fwww.google.com%2F&y=1.2&radius=5.0&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/distributed\/near (radius,x,y,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4936",
+							"uri": "http://host.docker.internal:8000/layout/distributed/near?x=1.2&=&radius=5.0&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/distributed\/near (radius,x,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4908",
+							"uri": "http://host.docker.internal:8000/layout/distributed/near?=&y=1.2&radius=5.0&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/distributed\/near (radius,y,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4352",
+							"uri": "http://host.docker.internal:8000/layout/distributed/near/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/distributed\/near\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "51",
+							"uri": "http://host.docker.internal:8000/layout/postgis",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/postgis",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4354",
+							"uri": "http://host.docker.internal:8000/layout/postgis/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/postgis\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "15",
+							"uri": "http://host.docker.internal:8000/layout/postgis/6804900944504688925",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/postgis\/6804900944504688925",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4355",
+							"uri": "http://host.docker.internal:8000/layout/postgis/near",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/postgis\/near",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "60",
+							"uri": "http://host.docker.internal:8000/layout/postgis/near?lat=http%3A%2F%2Fwww.google.com%2F&lon=1.2&radius_m=30.0&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/postgis\/near (lat,lon,radius_m,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4956",
+							"uri": "http://host.docker.internal:8000/layout/postgis/near?lat=1.2&=&radius_m=30.0&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/postgis\/near (lat,radius_m,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4924",
+							"uri": "http://host.docker.internal:8000/layout/postgis/near?=&lon=1.2&radius_m=30.0&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/postgis\/near (lon,radius_m,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4356",
+							"uri": "http://host.docker.internal:8000/layout/postgis/near/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/postgis\/near\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "59",
+							"uri": "http://host.docker.internal:8000/layout/query",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/query",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4358",
+							"uri": "http://host.docker.internal:8000/layout/query/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/query\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "16",
+							"uri": "http://host.docker.internal:8000/layout/query/8862119721467490444",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/query\/8862119721467490444",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4359",
+							"uri": "http://host.docker.internal:8000/layout/query/near",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/query\/near",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "68",
+							"uri": "http://host.docker.internal:8000/layout/query/near?x=http%3A%2F%2Fwww.google.com%2F&y=1.2&radius=1.5&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/query\/near (radius,x,y,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4941",
+							"uri": "http://host.docker.internal:8000/layout/query/near?x=1.2&=&radius=1.5&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/query\/near (radius,x,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4911",
+							"uri": "http://host.docker.internal:8000/layout/query/near?=&y=1.2&radius=1.5&zone_id=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/query\/near (radius,y,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4360",
+							"uri": "http://host.docker.internal:8000/layout/query/near/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/query\/near\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "67",
+							"uri": "http://host.docker.internal:8000/layout/recommendation",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/recommendation",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4362",
+							"uri": "http://host.docker.internal:8000/layout/recommendation/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/recommendation\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "17",
+							"uri": "http://host.docker.internal:8000/layout/recommendation/6836646454362615603",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/recommendation\/6836646454362615603",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4363",
+							"uri": "http://host.docker.internal:8000/layout/recommendation/screen",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/recommendation\/screen",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "6",
+							"uri": "http://host.docker.internal:8000/layout/recommendation/screen?x=1.2&y=1.2&radius=10.0&zone_id=&screen_type=&ad_category=&time_window=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/recommendation\/screen (ad_category,radius,screen_type,time_window,x,y,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "74",
+							"uri": "http://host.docker.internal:8000/layout/recommendation/screen?x=http%3A%2F%2Fwww.google.com%2F&y=1.2&radius=10.0&zone_id=&screen_type=&ad_category=&time_window=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/recommendation\/screen (ad_category,radius,screen_type,time_window,x,y,zone_id)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4364",
+							"uri": "http://host.docker.internal:8000/layout/recommendation/screen/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/recommendation\/screen\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "77",
+							"uri": "http://host.docker.internal:8000/layout/zones",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4366",
+							"uri": "http://host.docker.internal:8000/layout/zones/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "18",
+							"uri": "http://host.docker.internal:8000/layout/zones/863519308547394038",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/863519308547394038",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "91",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4368",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "19",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/7094320163651163179",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/7094320163651163179",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "101",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/screens/10",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/screens\/10",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4369",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/screens/10/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/screens\/10\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "5",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/screens/10/10",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/screens\/10\/10",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4372",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/screens/10/10/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/screens\/10\/10\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "21",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/screens/10/3982129948167355357",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/screens\/10\/3982129948167355357",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "20",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/screens/652086783462449993",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/screens\/652086783462449993",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "3285",
+							"uri": "http://host.docker.internal:8000/metadata/instance",
+							"nodeName": "http:\/\/host.docker.internal:8000\/metadata\/instance",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "3297",
+							"uri": "http://host.docker.internal:8000/metadata/v1",
+							"nodeName": "http:\/\/host.docker.internal:8000\/metadata\/v1",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "3237",
+							"uri": "http://host.docker.internal:8000/opc/v1/instance/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/opc\/v1\/instance\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "3249",
+							"uri": "http://host.docker.internal:8000/opc/v2/instance/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/opc\/v2\/instance\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "3305",
+							"uri": "http://host.docker.internal:8000/openstack/latest/meta_data.json",
+							"nodeName": "http:\/\/host.docker.internal:8000\/openstack\/latest\/meta_data.json",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "22",
+							"uri": "http://host.docker.internal:8000/placements/7412160937406053871",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/7412160937406053871",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "111",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4373",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "23",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign/7407223338817039675",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign\/7407223338817039675",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "118",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign/advertisements",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign\/advertisements",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4376",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign/advertisements/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign\/advertisements\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "24",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign/advertisements/7720367193910548373",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign\/advertisements\/7720367193910548373",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "405",
+							"otherinfo": ""
+						},
+						{
+							"id": "128",
+							"uri": "http://host.docker.internal:8000/placements/screen",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/screen",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4378",
+							"uri": "http://host.docker.internal:8000/placements/screen/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/screen\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "130",
+							"uri": "http://host.docker.internal:8000/recommendation",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4380",
+							"uri": "http://host.docker.internal:8000/recommendation/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "25",
+							"uri": "http://host.docker.internal:8000/recommendation/920316828802617633",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/920316828802617633",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "139",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4382",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "147",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements/10",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements\/10",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4383",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements/10/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements\/10\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "27",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements/10/2363142993401589329",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements\/10\/2363142993401589329",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4385",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements/10/screen",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements\/10\/screen",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "7",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements/10/screen?x=1.2&y=1.2&radius=10.0&screen_type=&ad_category=&time_window=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements\/10\/screen (ad_category,radius,screen_type,time_window,x,y)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "157",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements/10/screen?x=http%3A%2F%2Fwww.google.com%2F&y=1.2&radius=10.0&screen_type=&ad_category=&time_window=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements\/10\/screen (ad_category,radius,screen_type,time_window,x,y)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4386",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements/10/screen/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements\/10\/screen\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "26",
+							"uri": "http://host.docker.internal:8000/recommendation/advertisements/2565535244497828418",
+							"nodeName": "http:\/\/host.docker.internal:8000\/recommendation\/advertisements\/2565535244497828418",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "156",
+							"uri": "http://host.docker.internal:8000/security",
+							"nodeName": "http:\/\/host.docker.internal:8000\/security",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "4387",
+							"uri": "http://host.docker.internal:8000/security/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/security\/",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "28",
+							"uri": "http://host.docker.internal:8000/security/4126532575152325825",
+							"nodeName": "http:\/\/host.docker.internal:8000\/security\/4126532575152325825",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "252",
+							"uri": "http://host.docker.internal:8000/security/events?event_type=&limit=http%3A%2F%2Fwww.google.com%2F",
+							"nodeName": "http:\/\/host.docker.internal:8000\/security\/events (event_type,limit)",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "1",
+							"uri": "http://host.docker.internal:8000/auth/login",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/login ()({username,password})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "401",
+							"otherinfo": ""
+						},
+						{
+							"id": "97",
+							"uri": "http://host.docker.internal:8000/auth/login",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/login ()({username,password})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "429",
+							"otherinfo": ""
+						},
+						{
+							"id": "4341",
+							"uri": "http://host.docker.internal:8000/auth/login/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/login\/ ()({username,password})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "429",
+							"otherinfo": ""
+						},
+						{
+							"id": "2",
+							"uri": "http://host.docker.internal:8000/auth/refresh",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/refresh ()({refresh_token})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "401",
+							"otherinfo": ""
+						},
+						{
+							"id": "109",
+							"uri": "http://host.docker.internal:8000/auth/refresh",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/refresh ()({refresh_token})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "429",
+							"otherinfo": ""
+						},
+						{
+							"id": "4338",
+							"uri": "http://host.docker.internal:8000/auth/refresh/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/refresh\/ ()({refresh_token})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "429",
+							"otherinfo": ""
+						},
+						{
+							"id": "0",
+							"uri": "http://host.docker.internal:8000/auth/token",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/token ()({sub,scopes:[]})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "401",
+							"otherinfo": ""
+						},
+						{
+							"id": "49",
+							"uri": "http://host.docker.internal:8000/auth/token",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/token ()({sub,scopes:[]})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "429",
+							"otherinfo": ""
+						},
+						{
+							"id": "4342",
+							"uri": "http://host.docker.internal:8000/auth/token/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/token\/ ()({sub,scopes:[]})",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "429",
+							"otherinfo": ""
+						},
+						{
+							"id": "4334",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign/advertisements/10",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign\/advertisements\/10",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "8",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign/advertisements/10?x=1.2&y=1.2&radius=10.0&screen_type=&ad_category=&time_window=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign\/advertisements\/10 (ad_category,radius,screen_type,time_window,x,y)",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "404",
+							"otherinfo": ""
+						},
+						{
+							"id": "30",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign/advertisements/10?x=http%3A%2F%2Fwww.google.com%2F&y=1.2&radius=10.0&screen_type=&ad_category=&time_window=",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign\/advertisements\/10 (ad_category,radius,screen_type,time_window,x,y)",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						},
+						{
+							"id": "4335",
+							"uri": "http://host.docker.internal:8000/placements/recommend_and_assign/advertisements/10/",
+							"nodeName": "http:\/\/host.docker.internal:8000\/placements\/recommend_and_assign\/advertisements\/10\/",
+							"method": "POST",
+							"param": "",
+							"attack": "",
+							"evidence": "422",
+							"otherinfo": ""
+						}
+					],
+					"count": "102",
+					"systemic": false,
+					"solution": "",
+					"otherinfo": "",
+					"reference": "",
+					"cweid": "388",
+					"wascid": "20",
+					"sourceid": "49"
+				},
+				{
+					"pluginid": "10111",
+					"alertRef": "10111",
+					"alert": "Authentication Request Identified",
+					"name": "Authentication Request Identified",
+					"riskcode": "0",
+					"confidence": "3",
+					"riskdesc": "Informational (High)",
+					"desc": "<p>The given request has been identified as an authentication request. The 'Other Info' field contains a set of key=value lines which identify any relevant fields. If the request is in a context which has an Authentication Method set to \"Auto-Detect\" then this rule will change the authentication to match the request identified.</p>",
+					"instances":[ 
+						{
+							"id": "255",
+							"uri": "http://host.docker.internal:8000/auth/login",
+							"nodeName": "http:\/\/host.docker.internal:8000\/auth\/login ()({username,password})",
+							"method": "POST",
+							"param": "username",
+							"attack": "",
+							"evidence": "password",
+							"otherinfo": "userParam=username\nuserValue=John Doe\npasswordParam=password"
+						}
+					],
+					"count": "1",
+					"systemic": false,
+					"solution": "<p>This is an informational alert rather than a vulnerability and so there is nothing to fix.</p>",
+					"otherinfo": "<p>userParam=username</p><p>userValue=John Doe</p><p>passwordParam=password</p>",
+					"reference": "<p>https://www.zaproxy.org/docs/desktop/addons/authentication-helper/auth-req-id/</p>",
+					"cweid": "-1",
+					"wascid": "-1",
+					"sourceid": "7"
+				},
+				{
+					"pluginid": "10049",
+					"alertRef": "10049-1",
+					"alert": "Non-Storable Content",
+					"name": "Non-Storable Content",
+					"riskcode": "0",
+					"confidence": "2",
+					"riskdesc": "Informational (Medium)",
+					"desc": "<p>The response contents are not storable by caching components such as proxy servers. If the response does not contain sensitive, personal or user-specific information, it may benefit from being stored and cached, to improve performance.</p>",
+					"instances":[ 
+						{
+							"id": "333",
+							"uri": "http://host.docker.internal:8000/advertisements",
+							"nodeName": "http:\/\/host.docker.internal:8000\/advertisements",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "no-store",
+							"otherinfo": ""
+						},
+						{
+							"id": "326",
+							"uri": "http://host.docker.internal:8000/advertisements/zone/zone_id",
+							"nodeName": "http:\/\/host.docker.internal:8000\/advertisements\/zone\/zone_id",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "no-store",
+							"otherinfo": ""
+						},
+						{
+							"id": "330",
+							"uri": "http://host.docker.internal:8000/layout",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "no-store",
+							"otherinfo": ""
+						},
+						{
+							"id": "332",
+							"uri": "http://host.docker.internal:8000/layout/zones/zone_id/screens",
+							"nodeName": "http:\/\/host.docker.internal:8000\/layout\/zones\/zone_id\/screens",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "no-store",
+							"otherinfo": ""
+						},
+						{
+							"id": "3",
+							"uri": "http://host.docker.internal:8000/openapi.json",
+							"nodeName": "http:\/\/host.docker.internal:8000\/openapi.json",
+							"method": "GET",
+							"param": "",
+							"attack": "",
+							"evidence": "no-store",
+							"otherinfo": ""
+						}
+					],
+					"count": "5",
+					"systemic": true,
+					"solution": "<p>The content may be marked as storable by ensuring that the following conditions are satisfied:</p><p>The request method must be understood by the cache and defined as being cacheable (\"GET\", \"HEAD\", and \"POST\" are currently defined as cacheable)</p><p>The response status code must be understood by the cache (one of the 1XX, 2XX, 3XX, 4XX, or 5XX response classes are generally understood)</p><p>The \"no-store\" cache directive must not appear in the request or response header fields</p><p>For caching by \"shared\" caches such as \"proxy\" caches, the \"private\" response directive must not appear in the response</p><p>For caching by \"shared\" caches such as \"proxy\" caches, the \"Authorization\" header field must not appear in the request, unless the response explicitly allows it (using one of the \"must-revalidate\", \"public\", or \"s-maxage\" Cache-Control response directives)</p><p>In addition to the conditions above, at least one of the following conditions must also be satisfied by the response:</p><p>It must contain an \"Expires\" header field</p><p>It must contain a \"max-age\" response directive</p><p>For \"shared\" caches such as \"proxy\" caches, it must contain a \"s-maxage\" response directive</p><p>It must contain a \"Cache Control Extension\" that allows it to be cached</p><p>It must have a status code that is defined as cacheable by default (200, 203, 204, 206, 300, 301, 404, 405, 410, 414, 501).</p>",
+					"otherinfo": "",
+					"reference": "<p>https://datatracker.ietf.org/doc/html/rfc7234</p><p>https://datatracker.ietf.org/doc/html/rfc7231</p><p>https://www.w3.org/Protocols/rfc2616/rfc2616-sec13.html</p>",
+					"cweid": "524",
+					"wascid": "13",
+					"sourceid": "10"
+				}
+			]
+		}
+	],
+	"sequences":[
+	]
+
+}

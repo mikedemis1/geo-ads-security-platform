@@ -1,0 +1,2 @@
+10049	WARN	Storable and Cacheable Content. Fixed 2026-09-11: Cache-Control no-store on every non-static response. Left as WARN so a regression shows up.
+90004	WARN	Cross-Origin-Resource-Policy missing. Accepted: the ad images under /static are loaded cross-origin by the React console and by the Electron app (file:// origin); a same-site policy would block them. See docs/security/zap-baseline.md.
