@@ -6,7 +6,7 @@ import json
 import logging
 
 from dotenv import load_dotenv
-# app/main.py είναι σε backend/app/ → το .env είναι ένα επίπεδο πάνω (backend/)
+# app/main.py lives in backend/app/, so .env is one level up, in backend/
 load_dotenv(os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env"))
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -30,6 +30,12 @@ from app.services.placement_service import PlacementService
 from app.security.deps import require_scope
 from app.security.auth_routes import router as auth_router, limiter as auth_limiter
 
+# Zone ids are plain identifiers: GlassFloor, Surrounding, Megatron. Pinning
+# the shape at the boundary keeps anything else out of the layers below.
+# A ZAP API scan on 2026-09-11 sent zone_id=%00 to /layout/postgis/near; the
+# null byte travelled all the way into psycopg2 and came back as a 500.
+ZONE_ID_PATTERN = r"^[A-Za-z0-9_-]{1,64}$"
+
 app = FastAPI(title="Geo-Ads Backend")
 
 # ── Rate Limiting ──────────────────────────────────────
@@ -52,6 +58,11 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
             "connect-src 'self' ws://localhost:* wss://localhost:*"
         )
         response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        # API responses carry tokens and security data and must never sit in a
+        # browser or proxy cache. The ad images under /static are the one
+        # thing that is fine to cache. (ZAP baseline 2026-09-11, rule 10049.)
+        if not request.url.path.startswith("/static/"):
+            response.headers["Cache-Control"] = "no-store"
         return response
 
 app.add_middleware(SecurityHeadersMiddleware)
@@ -92,7 +103,7 @@ async def audit_middleware(request: Request, call_next):
     }
     audit_logger.info(json.dumps(log_entry, ensure_ascii=False))
 
-    # Record rate-limited events to threat engine
+    # Rate-limited requests are security events too
     if response.status_code == 429:
         try:
             from app.security.threat_engine import get_threat_engine
@@ -103,8 +114,8 @@ async def audit_middleware(request: Request, call_next):
                 source_ip=ip,
                 details={"path": request.url.path, "method": request.method},
             )
-        except Exception:
-            pass
+        except Exception as exc:  # detection must never break the response path
+            logging.getLogger("app").warning("threat engine unavailable, event dropped: %s", exc)
 
     return response
 
@@ -156,7 +167,7 @@ def root():
     return {"message": "Geo-Ads backend is running"}
 
 
-# ── ΔΙΑΦΗΜΙΣΕΙΣ ────────────────────────────────────────
+# ── ADVERTISEMENTS ─────────────────────────────────────
 @app.get(
     "/advertisements",
     response_model=list[Advertisement],
@@ -217,7 +228,7 @@ def query_screens_near(
     x: float = Query(...),
     y: float = Query(...),
     radius: float = Query(1.5),
-    zone_id: str | None = Query(None),
+    zone_id: str | None = Query(None, pattern=ZONE_ID_PATTERN),
 ):
     index = get_screen_index()
     return index.query_near(x, y, radius, zone_id)
@@ -232,12 +243,12 @@ def query_screens_near_postgis(
     lat: float = Query(..., description="Latitude (WGS-84)", ge=-90, le=90),
     lon: float = Query(..., description="Longitude (WGS-84)", ge=-180, le=180),
     radius_m: float = Query(30.0, description="Search radius in metres", ge=0.1, le=10000),
-    zone_id: str | None = Query(None),
+    zone_id: str | None = Query(None, pattern=ZONE_ID_PATTERN),
 ):
     """
     PostGIS ST_DWithin spatial query.
-    Επιστρέφει screens εντός radius_m μέτρων από το σημείο (lat, lon).
-    Χρησιμοποιεί GIST index στη DB — συγκρίσιμο με /layout/query/near (R-Tree in-memory).
+    Returns the screens within radius_m metres of the point (lat, lon).
+    Uses the GIST index in the database; comparable to /layout/query/near (in-memory R-Tree).
     """
     index = get_screen_index()
     return index.query_near_postgis(lat=lat, lon=lon, radius_m=radius_m, zone_id=zone_id)
@@ -252,7 +263,7 @@ def query_screens_distributed_near(
     x: float = Query(...),
     y: float = Query(...),
     radius: float = Query(5.0),
-    zone_id: str | None = Query(None),
+    zone_id: str | None = Query(None, pattern=ZONE_ID_PATTERN),
 ):
     """
     Distributed Index fan-out query (MapReduce simulation).
@@ -284,7 +295,7 @@ def recommend_screen_endpoint(
     x: float = Query(...),
     y: float = Query(...),
     radius: float = Query(10.0),
-    zone_id: str | None = Query(None),
+    zone_id: str | None = Query(None, pattern=ZONE_ID_PATTERN),
     screen_type: str | None = Query(None),
     ad_category: str | None = Query(None),
     time_window: str | None = Query(None),
@@ -382,8 +393,8 @@ def benchmark_spatial(
     if postgis_error is None:
         try:
             postgis_count = len(index.query_near_postgis(lat, lon, radius_m))
-        except Exception:
-            pass
+        except Exception as exc:
+            postgis_error = str(exc)
 
     return {
         "params": {
