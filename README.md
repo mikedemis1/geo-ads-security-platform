@@ -84,8 +84,8 @@ where an access token lasts one hour. Anyone holding one had a day of access
 instead of an hour.
 
 My own suite missed this. I had written the test for the direction I had thought
-about — an access token presented at `/auth/refresh`, which was already
-rejected — and never wrote the mirror image. It was found on 11 September 2026
+about, an access token presented at `/auth/refresh`, which was already
+rejected, and never wrote the mirror image. It was found on 11 September 2026
 by an independent review of this repository, and the fix is a single
 `require_token_type` check applied everywhere a token is accepted. The
 WebSocket test output is the clearest record of the bug: with a refresh token
