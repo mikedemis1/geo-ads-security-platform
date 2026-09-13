@@ -14,18 +14,32 @@ Everything in the security layer exists because the first version of this API wa
 
 ## Architecture
 
+```mermaid
+flowchart TD
+    Browser["Browser: React console"]
+    Nginx["nginx: static build only"]
+    API["FastAPI backend"]
+    WSSimple["/ws/recommendation-simple, unsigned"]
+    WSSigned["/ws/recommendation, HMAC + anti-replay"]
+    Security["Security layer: JWT scopes, rate limits, threat engine"]
+    Spatial["Spatial index engine: R-Tree, KD-Tree, grid, PostGIS, distributed"]
+    DB["PostgreSQL 16 + PostGIS 3.4"]
+
+    Browser -- "page load" --> Nginx
+    Browser -- "HTTP + JWT" --> API
+    Browser -- "WebSocket, no signing" --> WSSimple
+    Browser -- "WebSocket, signed messages" --> WSSigned
+    WSSimple --> API
+    WSSigned --> API
+    API --> Security
+    API --> Spatial
+    Spatial --> DB
 ```
-Electron desktop app  (wraps the React UI, starts the backend)
-        |
-React operator console  (VisualBoard, SecurityDashboard, Login)
-        |  HTTP + WebSocket
-FastAPI backend
-   |-- spatial index engine   R-Tree, KD-Tree, grid, PostGIS, distributed
-   |-- security layer         JWT scopes, rate limits, HMAC + anti-replay, threat engine
-   |-- placement service      in-memory, broadcasts over WebSocket
-        |
-PostgreSQL 16 + PostGIS 3.4   (advertisements, screens with WGS-84 coordinates)
-```
+
+nginx has no reverse proxy: it only serves the built React bundle, and the
+browser talks to FastAPI directly for everything else. The console's own
+WebSocket, `/ws/recommendation-simple`, does not carry the HMAC and
+anti-replay checks that `/ws/recommendation` enforces.
 
 ## Spatial index engine
 
@@ -194,6 +208,29 @@ The short list; the full one is in the threat model.
 - No TLS in the app itself; it expects a reverse proxy on a private network. Compose binds every port to `127.0.0.1`, so nothing is reachable from the rest of the network by default.
 - Docker base images are pinned by tag, not by digest. A rebuild months from now can pull different bytes under the same tag.
 - `/health` doesn't touch the database, so a healthy backend doesn't prove the database is reachable.
+
+## What I'd Improve
+
+The limits above say what is missing. This says which of it I would fix first
+and why.
+
+- **The shared HMAC secret is also the admin token secret.** One value backs
+  two different guarantees, controller message integrity and who can mint a
+  token. Splitting them means a leak of one does not hand over the other.
+- **HS256 lets anyone who can verify a token also mint one.** Moving to an
+  asymmetric scheme like RS256 would let the backend hold the only signing
+  key while any node still verifies, which is the actual shape of the trust
+  the controller nodes need.
+- **Refresh tokens cannot be revoked before they expire.** A stolen 24-hour
+  refresh token is a 24-hour window with no way to close it early. A
+  denylist or a shorter refresh lifetime would bound that window instead of
+  just documenting it.
+- **The `/ws/recommendation-simple` endpoint the React console actually uses
+  carries none of the HMAC or anti-replay checks that `/ws/recommendation`
+  enforces.** The signed endpoint exists and is tested; the one the UI
+  connects to is not. Wiring the console to the signed path, or adding the
+  same checks to the simple one, closes a gap between what is built and what
+  is used.
 
 ## Stack
 
