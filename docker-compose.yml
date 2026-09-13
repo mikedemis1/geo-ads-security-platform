@@ -1,7 +1,7 @@
 services:
   db:
     image: postgis/postgis:16-3.4
-    container_name: geo_ads_db
+    container_name: geo_ads_platform_db
     restart: unless-stopped
     environment:
       POSTGRES_USER: geo_ads_user
@@ -10,7 +10,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in a .env file next to docker-compose.yml}
       POSTGRES_DB: geo_ads
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5434:5432"
     volumes:
       - geo_ads_db_data:/var/lib/postgresql/data
       - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql
@@ -20,6 +20,35 @@ services:
       timeout: 3s
       retries: 5
       start_period: 10s
+
+  backend:
+    build:
+      context: ./backend
+    container_name: geo_ads_backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env
+    environment:
+      # Inside the network the database is a service name on its own port,
+      # not the host mapping. Everything else comes from backend/.env.
+      DB_HOST: db
+      DB_PORT: 5432
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend/geo-ads-frontend
+    container_name: geo_ads_frontend
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   geo_ads_db_data:

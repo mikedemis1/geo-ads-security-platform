@@ -154,7 +154,26 @@ Interactive docs are at `http://localhost:8000/docs` when the backend is running
 
 ## Running it
 
-You need Docker, Python 3.11 or newer, and Node 18 or newer.
+You need Docker.
+
+```bash
+bash scripts/dev-up.sh
+```
+
+This generates `.env` and `backend/.env` if they are missing, with a matching
+database password in both and a random admin password, then hands off to
+`docker compose`, which owns build order, startup order and health checks.
+The admin password is printed once, on generation, and also lands in
+`backend/.env`, which is gitignored. Re-running the script is safe: it never
+overwrites an `.env` that already exists.
+
+Once it's up: backend on `http://localhost:8000`, frontend on
+`http://localhost:3001`, database on `localhost:5434`. All three are bound to
+`127.0.0.1` only, not reachable from the network.
+
+Manual path, without Docker, if you need to run a piece on its own:
+
+You need Python 3.11 or newer and Node 18 or newer.
 
 1. Secrets. Copy `.env.example` to `.env` and `backend/.env.example` to `backend/.env`, then replace every `CHANGE_ME`. The database password must be the same in both. The app and Compose both refuse to start if anything required is missing.
 2. Database: `docker compose up -d`
@@ -171,9 +190,15 @@ The short list; the full one is in the threat model.
 - Refresh tokens cannot be revoked before they expire.
 - Rate limits are per IP, so everyone behind one NAT shares a quota.
 - Events, alerts, nonces and placements live in memory; a restart clears them and a second instance would not share them.
-- The CSP allows `unsafe-inline`.
-- No TLS in the app itself; it expects a reverse proxy on a private network.
+- The CSP allows `unsafe-inline`, on both the backend's own responses and the static frontend served by nginx.
+- No TLS in the app itself; it expects a reverse proxy on a private network. Compose binds every port to `127.0.0.1`, so nothing is reachable from the rest of the network by default.
+- Docker base images are pinned by tag, not by digest. A rebuild months from now can pull different bytes under the same tag.
+- `/health` doesn't touch the database, so a healthy backend doesn't prove the database is reachable.
 
 ## Stack
 
 Python 3.11, FastAPI, Uvicorn, PyJWT, slowapi, rtree, scipy, psycopg2; PostgreSQL 16 with PostGIS 3.4 in Docker; React 19; Electron; pytest, Semgrep, Bandit, OWASP ZAP in GitHub Actions.
+
+`backend/requirements.txt` is the human-readable list of direct dependencies.
+`backend/requirements.lock.txt` is what the Docker build actually installs
+from, and is the one that matters for reproducing a build.

@@ -1,0 +1,141 @@
+2026-09-13: GEO-ADS one-command startup, verification evidence
+=================================================================
+
+What broke during the build and what fixed it
+-----------------------------------------------
+
+Three blockers were found by review before the first build and fixed in the
+Dockerfiles and dev-up.sh before anything ran:
+
+1. backend/Dockerfile: WORKDIR /app is created owned by root. The app opens
+   audit.log in that directory at import time, so uid 10001 got a
+   PermissionError on start. Fix: `RUN chown app:app /app` after WORKDIR,
+   before USER app.
+
+2. .env (POSTGRES_PASSWORD) and backend/.env (DB_PASSWORD) had been generated
+   separately on 2026-09-11 and held different values, so the backend could
+   not authenticate against its own database. dev-up.sh now checks the two
+   values match and refuses to start compose if they don't. The mismatched
+   pair on this machine was deleted and regenerated as a matching pair.
+
+3. frontend/geo-ads-frontend/Dockerfile used nginx:1.27-alpine, which starts
+   as root. Switched to nginxinc/nginx-unprivileged:1.27-alpine, same nginx,
+   built to run as uid 101.
+
+What the build itself revealed, not caught by static review:
+
+4. The container name `geo_ads_db` and host port 5433 were already taken by
+   an unrelated, long-running Postgres container from a separate project
+   (a university thesis, different repository, different docker-compose.yml).
+   Fixed by renaming this project's db container to `geo_ads_platform_db` and
+   moving its host port to 5434. No change was made to the other project or
+   its data.
+
+5. Host port 3000 was already held by a local VPN routing service, unrelated
+   to Docker entirely. Moved the frontend's host port mapping to 3001. The
+   container still listens on 3000 internally; nginx.conf did not need to
+   change.
+
+Verification, from a running stack
+-----------------------------------
+
+$ docker compose ps
+NAME                  IMAGE                                SERVICE    STATUS                    PORTS
+geo_ads_backend       geo-ads-security-platform-backend    backend    Up (healthy)              127.0.0.1:8000->8000/tcp
+geo_ads_frontend      geo-ads-security-platform-frontend   frontend   Up (healthy)              127.0.0.1:3001->3000/tcp
+geo_ads_platform_db   postgis/postgis:16-3.4               db         Up (healthy)              127.0.0.1:5434->5432/tcp
+
+$ curl -sf http://localhost:8000/health && echo OK
+{"status":"ok"} OK
+
+$ curl -sI http://localhost:3001 | head -12
+HTTP/1.1 200 OK
+Server: nginx
+Content-Type: text/html
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: no-referrer
+Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self' http://localhost:8000 ws://localhost:8000; frame-ancestors 'none'
+
+$ docker exec geo_ads_platform_db psql -U geo_ads_user -d geo_ads \
+    -c "SELECT count(*) FROM advertisements;" -c "SELECT count(*) FROM screens;"
+ count
+-------
+     7
+(1 row)
+ count
+-------
+    28
+(1 row)
+
+Authenticated read, the check that actually proves the credentials work end
+to end (a healthy /health and a healthy pg_isready both stay green even when
+the app can't authenticate against the database):
+
+$ TOKEN=$(curl -s -X POST http://localhost:8000/auth/login \
+    -H 'Content-Type: application/json' \
+    -d '{"username":"admin","password":"<redacted>"}' \
+    | python -c "import sys,json; print(json.load(sys.stdin).get('access_token',''))")
+$ echo "token length: ${#TOKEN}"
+token length: 368
+$ curl -s -H "Authorization: Bearer $TOKEN" "http://localhost:8000/advertisements" | head -c 300
+[{"id":1,"name":"Nike Air Max","image_url":"/static/ads/airmax.png","zone":"glassfloor"},
+ {"id":2,"name":"Under Armour Basketball","image_url":"/static/ads/underarmour.png","zone":"glassfloor"},
+ {"id":3,"name":"Adidas Predator","image_url":"/static/ads/predator.png","zone":"surrounding"},...
+
+$ docker exec geo_ads_backend id
+uid=10001(app) gid=10001(app) groups=10001(app)
+$ docker exec geo_ads_frontend id
+uid=101(nginx) gid=101(nginx) groups=101(nginx)
+
+$ docker images | grep geo
+geo-ads-security-platform-backend    latest   753MB
+geo-ads-security-platform-frontend   latest   75.5MB
+
+Verified from clean (the actual requirement, not just "it started")
+----------------------------------------------------------------------
+
+$ docker compose down -v
+Container geo_ads_frontend  Removed
+Container geo_ads_backend  Removed
+Container geo_ads_platform_db  Removed
+Volume geo-ads-security-platform_geo_ads_db_data  Removed
+
+$ bash scripts/dev-up.sh
+... init.sql runs again, seed data reloaded ...
+
+$ docker compose ps
+geo_ads_backend       Up (healthy)   127.0.0.1:8000->8000/tcp
+geo_ads_frontend      Up (healthy)   127.0.0.1:3001->3000/tcp
+geo_ads_platform_db   Up (healthy)   127.0.0.1:5434->5432/tcp
+
+Re-ran the full verification block above against the clean start. Same
+results: /health OK, headers and CSP present, 7 advertisements and 28
+screens, login and authenticated read both succeed, both containers non-root.
+
+Dependency pinning
+-------------------
+
+backend/requirements.txt listed direct dependencies with no versions.
+Captured what actually installed and built the runtime image from that
+instead:
+
+$ docker exec geo_ads_backend pip freeze > backend/requirements.lock.txt
+
+backend/Dockerfile's build stage now installs from requirements.lock.txt.
+requirements.txt stays as the short, human-readable list of direct
+dependencies; requirements.lock.txt is what the build actually uses. Rebuilt
+against the lock file and re-ran the verification block above a third time;
+same results.
+
+Known limits, stated plainly
+------------------------------
+
+- /health does not touch the database. A healthy /health can still sit in
+  front of a backend that cannot reach Postgres. The authenticated read
+  above is what actually proves the database connection and credentials
+  work; making /health a real readiness check is worth doing later and is
+  not part of this task.
+- Base images (python:3.12-slim, node:20-alpine, postgis/postgis:16-3.4,
+  nginxinc/nginx-unprivileged:1.27-alpine) are pinned by tag, not by digest.
+  A rebuild months from now can pull different bytes under the same tag.
