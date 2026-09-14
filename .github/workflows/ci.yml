@@ -46,7 +46,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install semgrep bandit
+      - run: pip install semgrep "bandit[sarif]"
       - name: semgrep
         run: >
           semgrep scan --config p/python --config p/security-audit --config p/secrets

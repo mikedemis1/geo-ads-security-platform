@@ -1,3 +1,7 @@
 pytest
-bandit
+# starlette 1.x drives its TestClient with httpx2 and warns if only httpx is
+# present. pytest.ini turns warnings into errors, so without this the suite
+# fails to import conftest at all. Nothing in app/ imports it directly.
+httpx2
+bandit[sarif]
 semgrep
