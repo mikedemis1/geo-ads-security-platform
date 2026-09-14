@@ -3,5 +3,14 @@ pytest
 # present. pytest.ini turns warnings into errors, so without this the suite
 # fails to import conftest at all. Nothing in app/ imports it directly.
 httpx2
-bandit[sarif]
-semgrep
+
+# semgrep and bandit are deliberately NOT here. They are CI scanners, not test
+# dependencies: the pytest job never calls them, and the sast job installs them
+# itself. Having them in this file dragged their own constraints into the test
+# environment and pulled wrapt down to 1.17.3, while the lock file and the
+# container ship 2.4.1. The suite was being validated against a different wrapt
+# than production runs, which is the same local-versus-CI divergence that broke
+# the build in September, one layer down.
+#
+# To run them locally:  pip install semgrep "bandit[sarif]"  in a separate
+# virtualenv, not this one.

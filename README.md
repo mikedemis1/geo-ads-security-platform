@@ -84,6 +84,14 @@ pip install -r requirements.txt -r requirements-dev.txt
 python -m pytest
 ```
 
+The runtime versions are pinned in `requirements.txt` and the full resolved set,
+including transitive packages, is in `requirements.lock.txt`, which is what the
+Dockerfile builds its wheels from. The two are generated together. Semgrep and
+Bandit are not installed by the command above: they are CI scanners rather than
+test dependencies, and installing them alongside the app changes versions the
+container does not use. Install them in their own virtualenv if you want to run
+them by hand.
+
 What they cover: token minting and every way a token can be wrong; missing, malformed and under-scoped bearer headers; the admin secret; refresh tokens used as access tokens; the sixth request in a minute; the security headers on success and error responses; WebSocket close codes; tampered, wrongly signed, replayed, stale and future-dated messages; SHA-2 versus SHA-3 signatures; both detectors; event eviction; that a refresh token is refused wherever an access token is expected, that a malformed zone id is rejected before it reaches the database, and that the app refuses to start without a database password or with a short JWT secret.
 
 ## What the tests found

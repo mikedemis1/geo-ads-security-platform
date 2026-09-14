@@ -1,11 +1,28 @@
-fastapi
-uvicorn[standard]
-sqlalchemy
-psycopg2-binary
-python-dotenv
-pydantic
-httpx
-PyJWT
-rtree
-scipy
-slowapi
+# Runtime dependencies, pinned deliberately.
+#
+# These were unpinned until 2026-09-14, which meant CI installed whatever had
+# been released that morning while this machine still had older versions. A
+# starlette release broke the test suite for three days without a single commit
+# being involved. Pinning is what makes a green build still mean something
+# tomorrow.
+#
+# requirements.lock.txt holds the full resolved set including transitive
+# packages, and the Dockerfile builds its wheels from it. The two files are
+# generated together: change one without the other and the image build fails
+# with "No matching distribution", because the wheel directory is installed
+# with --no-index.
+#
+# To upgrade: unpin in a scratch virtualenv, run the suite, and if it is green
+# regenerate both files from the same pip freeze.
+
+fastapi==0.141.1
+uvicorn[standard]==0.53.0
+sqlalchemy==2.0.52
+psycopg2-binary==2.9.13
+python-dotenv==1.2.3
+pydantic==2.13.5
+httpx==0.28.1
+PyJWT==2.14.0
+rtree==1.4.1
+scipy==1.18.1
+slowapi==0.1.10

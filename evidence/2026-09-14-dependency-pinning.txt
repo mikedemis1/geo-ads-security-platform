@@ -1,0 +1,173 @@
+GEO-ADS backend dependency pinning
+2026-09-14
+
+Before state
+------------
+backend/requirements.txt listed eleven direct dependencies with no version
+constraints:
+
+fastapi
+uvicorn[standard]
+sqlalchemy
+psycopg2-binary
+python-dotenv
+pydantic
+httpx
+PyJWT
+rtree
+scipy
+slowapi
+
+CI installed whatever pip resolved on the day the workflow ran. Between 11 and
+14 September, starlette 1.6.0 shipped, its TestClient started warning about
+httpx2, pytest.ini sets filterwarnings = error, and pytest died during
+conftest import with exit code 4. No commit in this repository caused it.
+
+Why the resolution ran inside a container, not on the host
+------------------------------------------------------------
+uvicorn[standard] pulls uvloop, and uvloop has no Windows wheel. A pip freeze
+taken directly on this Windows machine silently omits it, producing a lock
+file that looks complete but breaks the Linux-only image build (the
+Dockerfile targets python:3.12-slim). So every resolution and test run in
+this task happened inside a python:3.12-slim container, the same base image
+the Dockerfile uses. uvloop==0.22.1 is present in the result below, which is
+the proof the resolution happened on Linux.
+
+Step 3: runtime dependencies resolved on Linux (python:3.12-slim)
+-------------------------------------------------------------------
+docker run --rm -v backend:/src:ro -w /src python:3.12-slim \
+  sh -c "pip install -q -r requirements.txt && pip freeze"
+
+34 lines resolved. uvloop==0.22.1 present.
+
+Step 4: candidate set tested with dev packages
+-------------------------------------------------
+First attempt used the full 34-line freeze as a pip -c constraint while
+installing requirements.txt + requirements-dev.txt together. This failed:
+
+  ERROR: Cannot install opentelemetry-instrumentation-requests because these
+  package versions have conflicting dependencies.
+  The conflict is caused by:
+      opentelemetry-instrumentation 0.46b0 depends on wrapt<2.0.0 and >=1.0.0
+      The user requested (constraint) wrapt==2.4.1
+
+Cause: wrapt is a transitive dependency of slowapi -> limits -> Deprecated in
+the runtime chain, and it resolves to 2.4.1 when the runtime set is resolved
+alone. semgrep (dev-only, via opentelemetry-instrumentation) needs
+wrapt<2.0.0. Forcing wrapt==2.4.1 as a hard constraint during the combined
+install is stricter than what the actual CI pytest job does: ci.yml only
+installs `-r requirements.txt -r requirements-dev.txt` with no separate
+constraint file, so pip is free to resolve wrapt to a version under 2.0 that
+still satisfies the runtime chain's own range (Deprecated requires
+wrapt>=1.10,<3). This was confirmed as a false alarm from an over-strict
+verification method, not a real incompatibility in the application, and the
+user agreed to narrow the constraint to the eleven direct packages rather
+than the full 34-line freeze.
+
+Second attempt, constraint narrowed to the eleven direct packages only
+(fastapi, uvicorn, sqlalchemy, psycopg2-binary, python-dotenv, pydantic,
+httpx, PyJWT, rtree, scipy, slowapi, each pinned to its Step 3 version):
+
+  pip install -c direct-constraint.txt -r requirements.txt -r requirements-dev.txt
+  python -m pytest -q
+
+Result: 65 passed. All eleven direct dependency versions after the combined
+install matched the Step 3 versions exactly (checked by grep against the
+post-install freeze), so the runtime set did not drift while semgrep and
+bandit resolved.
+
+Step 6: lock file diff
+-------------------------
+Copying the Step 3 freeze to backend/requirements.lock.txt produced a
+one-line diff against the previous lock:
+
+  -uvicorn==0.52.4
+  +uvicorn==0.53.0
+
+uvloop==0.22.1 still present after the copy.
+
+Step 7: image build and in-image test run
+--------------------------------------------
+docker compose build backend
+
+Image built successfully (geo-ads-security-platform-backend:latest, 753MB).
+The build installed all 34 pinned packages from wheels built against the new
+lock file with no "No matching distribution" error, so requirements.txt and
+requirements.lock.txt agree.
+
+Running the test suite inside the built image, with dev packages installed
+on top using the same narrowed direct-package constraint as Step 4 (the same
+wrapt situation reproduces if the full lock is used as the constraint here,
+for the same reason):
+
+  docker run --rm --entrypoint sh -v backend/tests:/app/tests:ro \
+    -v backend/pytest.ini:/app/pytest.ini:ro \
+    -v backend/requirements-dev.txt:/tmp/dev.txt:ro \
+    -v direct-constraint.txt:/tmp/c.txt:ro \
+    -u root <image> -c "pip install -q -c /tmp/c.txt -r /tmp/dev.txt && python -m pytest -q"
+
+Result: 65 passed in 0.66s.
+
+Conclusion
+----------
+The pinning closes the failure class from 11-14 September: CI now installs
+an exact, tested set of runtime versions rather than whatever pip resolves
+on the day the workflow runs. The httpx2 line already in requirements-dev.txt
+was a workaround for the same underlying issue (starlette's TestClient
+warning), added on 14 September before this task; it stays, but the pinning
+is what actually prevents the next unannounced major release from breaking
+the build again, not the httpx2 addition by itself.
+
+Files changed:
+- backend/requirements.txt: eleven direct dependencies pinned to their
+  Step 3 versions.
+- backend/requirements.lock.txt: uvicorn 0.52.4 -> 0.53.0, all else
+  unchanged.
+
+
+Correction, same day, after review
+------------------------------------------------------------------------------
+The section above calls the constraint conflict "a false alarm from an
+over-strict constraint". That reading is wrong, and the correction matters more
+than the original finding.
+
+The constraint was not too strict. It was working. What it caught is real:
+
+  test environment, as installed by ci.yml line 38   wrapt==1.17.3
+  requirements.lock.txt, and therefore the image     wrapt==2.4.1
+
+Verified by installing requirements.txt plus requirements-dev.txt in a clean
+python:3.12-slim and reading pip freeze. semgrep depends on
+opentelemetry-instrumentation, which requires wrapt<2.0.0, so putting semgrep in
+requirements-dev.txt pulls wrapt down by a major version in the environment the
+test suite runs in. The suite was being validated against a wrapt the container
+never runs. That is the same local-versus-CI divergence that broke the build
+between 11 and 14 September, one layer further down.
+
+The real fix is not to loosen the constraint. It is that semgrep and bandit do
+not belong in requirements-dev.txt at all:
+
+  ci.yml line 38 (pytest job)  pip install -r requirements.txt -r requirements-dev.txt
+  ci.yml line 49 (sast job)    pip install semgrep "bandit[sarif]"
+
+The sast job installs them itself. The pytest job installs them and never calls
+them. They were pure overhead in the one place they did damage.
+
+With both lines removed from requirements-dev.txt, the plan's original strict
+constraint runs exactly as written:
+
+  $ pip install -c requirements.lock.txt -r requirements.txt -r requirements-dev.txt
+  constraint install: OK
+  $ diff requirements.lock.txt <(pip freeze) | grep '^<'
+  no runtime package changed
+  $ python -m pytest -q
+  65 passed in 0.56s
+
+So the ResolutionImpossible was a genuine finding reported as a nuisance. The
+lesson is the one this repository keeps relearning: when a check fails, the
+first question is what it is telling you, not how to get past it.
+
+Additional files changed by the correction:
+- backend/requirements-dev.txt: semgrep and bandit removed, with a comment
+  recording why and where they live instead.
+- README.md: the test install section now says the scanners are not part of it.
