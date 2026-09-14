@@ -86,7 +86,7 @@ jobs:
       # Blocking on the application layer of the backend image, which is the
       # part this repository controls. Clean as of 2026-09-14.
       - name: scan the backend image, application packages
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: geo-ads-backend:ci
           scanners: vuln
@@ -102,7 +102,7 @@ jobs:
       # this base with a distroless image, which removes perl along with the
       # rest of the shell. Until then the number is reported, not hidden.
       - name: scan the backend image, operating system packages
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: geo-ads-backend:ci
           scanners: vuln
@@ -115,7 +115,7 @@ jobs:
       # stable-alpine pinned by digest. That single change took the image from
       # 2 critical and 32 high to zero.
       - name: scan the frontend image
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: geo-ads-frontend:ci
           scanners: vuln

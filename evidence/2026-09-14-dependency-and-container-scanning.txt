@@ -162,9 +162,30 @@ scan is the thing that tells you when.
   sast   semgrep and bandit    yes
   dast   zap baseline          no, documented in the workflow header
 
-Trivy runs through aquasecurity/trivy-action pinned to 0.36.0. An unpinned
+Trivy runs through aquasecurity/trivy-action pinned to v0.36.0. An unpinned
 action on a security scanner is a supply chain problem of its own.
 
 Every gate that is not blocking says in the workflow file why, in terms of this
 application rather than in general. A threshold lowered without a written reason
 is the start of a pipeline nobody trusts.
+
+
+6. The first run of this was red, for a boring reason worth writing down
+------------------------------------------------------------------------------
+Commit a60108e failed the container scan job immediately, at "Set up job",
+before a single step ran. That is the signature of a workflow that cannot
+resolve an action, not of a scan finding something.
+
+The cause: the action was referenced as `aquasecurity/trivy-action@0.36.0`. The
+release is tagged `v0.36.0`. The version had been looked up correctly through
+the API and then typed without the `v`.
+
+  $ curl -o /dev/null -w "%{http_code}" .../git/ref/tags/0.36.0    404
+  $ curl -o /dev/null -w "%{http_code}" .../git/ref/tags/v0.36.0   200
+
+Checked the action's inputs at that tag at the same time rather than fixing one
+thing and pushing again: `vuln-type` is still a valid input in v0.36.0, and the
+flag still works on the Trivy version the action installs, confirmed locally
+against the backend image, which returns clean at the library layer with exit 0.
+
+Nothing about the scanning design was wrong. One character was.
