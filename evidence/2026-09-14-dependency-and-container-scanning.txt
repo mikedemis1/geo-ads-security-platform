@@ -189,3 +189,34 @@ flag still works on the Trivy version the action installs, confirmed locally
 against the backend image, which returns clean at the library layer with exit 0.
 
 Nothing about the scanning design was wrong. One character was.
+
+
+7. The second run was red too, and the action came out of the pipeline
+------------------------------------------------------------------------------
+Fixing the tag got the job past "Set up job" and into the work. It then failed
+at step 4, the backend library scan, with nothing more informative than:
+
+  Process completed with exit code 1
+
+That is Trivy claiming a finding. The same scan was clean locally, so the claim
+was reproduced before believing it: the scanner image was re-pulled to get a
+current vulnerability database, the backend image was rebuilt exactly the way
+the workflow builds it (`docker build -t geo-ads-backend:ci backend`, not
+through compose), and the identical command was run again.
+
+  every python-pkg entry: 0
+  exit 0
+
+Clean. So the difference was not the image and not the database. It was the
+marketplace action between the workflow and the scanner, and the action's own
+failure gave no way to tell which of its internal steps produced the exit code.
+
+Trivy now runs as a pinned container, `aquasec/trivy:0.74.0`, with the exact
+command that was verified by hand. It prints its own table into the job log, so
+a future failure says what it found instead of only that something happened.
+There is one fewer layer between the scanner and the result, and the version is
+pinned rather than tracking a tag, for the same reason the Python dependencies
+are.
+
+`actions/checkout` was moved from v4 to v5 in the same pass: the run annotations
+were warning that v4 targets Node.js 20 and was being forced onto Node.js 24.
