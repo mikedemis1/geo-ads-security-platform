@@ -14,7 +14,13 @@ COPY . .
 RUN npm run build
 
 
-FROM nginxinc/nginx-unprivileged:1.27-alpine AS runtime
+# Pinned by digest as well as tag. The tag is what a human reads; the digest is
+# what makes the build reproducible. Both matter, and the reason is on the wall
+# here: this image used to pin 1.27-alpine, a line whose last rebuild was June
+# 2025. Fifteen months later it carried 2 critical and 32 high findings with
+# fixes available upstream, purely from sitting still. The Trivy gate in CI is
+# what says when this line needs bumping.
+FROM nginxinc/nginx-unprivileged:stable-alpine@sha256:adf5042a17f4ecdd200c595fa9ffd1be37efb18f89a830bd1a00e4ab4d59d42c AS runtime
 
 COPY --from=build /src/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf

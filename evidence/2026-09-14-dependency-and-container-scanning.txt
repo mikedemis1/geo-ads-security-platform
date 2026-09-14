@@ -1,0 +1,170 @@
+Dependency and container scanning
+Date: 2026-09-14
+Context: the pipeline had SAST (Semgrep, Bandit) and DAST (OWASP ZAP) and
+neither software composition analysis nor image scanning. This adds both, and
+records what they found the first time they ran.
+
+The interesting part is not that the scanners were added. It is that two of the
+four gates could not pass on the day they were written, and what was done about
+each is different.
+
+
+1. Dependency audit, Python
+------------------------------------------------------------------------------
+Run against requirements.lock.txt, not requirements.txt. The lock is the full
+resolved set, so a vulnerability three levels down is still a package the image
+installs. Auditing the eleven direct pins would have come back clean while
+shipping the problem anyway.
+
+  $ pip-audit -r requirements.lock.txt --progress-spinner=off
+  No known vulnerabilities found
+  exit 0
+
+This has to run on Linux. On Windows it fails before it starts:
+
+  RuntimeError: uvloop does not support Windows at the moment
+  ERROR: Failed to build 'uvloop' when getting requirements to build wheel
+
+uvloop is in the lock because uvicorn[standard] pulls it, and the lock is
+resolved inside python:3.12-slim for exactly this reason. Same constraint, same
+answer, as the pinning work earlier today.
+
+Negative test, because a scanner that has never failed is not known to work:
+
+  $ echo "PyJWT==1.7.1" > /tmp/vuln.txt
+  $ pip-audit -r /tmp/vuln.txt --progress-spinner=off
+  Found 9 known vulnerabilities in 1 package
+  pyjwt 1.7.1  PYSEC-2022-202  fix 2.4.0
+  pyjwt 1.7.1  PYSEC-2026-120  fix 2.12.0
+  pyjwt 1.7.1  PYSEC-2026-179  fix 2.13.0
+  ... (9 total)
+  exit 1
+
+Non-zero exit confirmed. The gate is real.
+
+
+2. Dependency audit, npm: informational, and why
+------------------------------------------------------------------------------
+  $ npm audit --audit-level=high
+  58 vulnerabilities (12 low, 15 moderate, 29 high, 2 critical)
+  exit 1
+
+  $ npm audit --omit=dev --audit-level=high
+  exit 1
+
+The --omit=dev split does not help: Create React App puts react-scripts in
+dependencies rather than devDependencies, so npm cannot tell build tooling from
+shipped code here.
+
+The Dockerfile can. Every high and critical finding is in the build toolchain:
+
+  @babel/plugin-transform-modules-systemjs, @svgr/webpack, browserslist,
+  css-select, express, js-yaml, nanoid, node-forge, nth-check, path-to-regexp,
+  postcss, webpack-dev-server's ws, shell-quote, websocket-driver
+
+The two criticals are shell-quote and websocket-driver, both reached through
+webpack-dev-server, a development server that does not exist in production.
+
+  frontend/geo-ads-frontend/Dockerfile line 19:
+    COPY --from=build /src/build /usr/share/nginx/html
+
+Only the build output crosses into the runtime stage. node_modules stays in the
+first stage and is discarded. So npm audit here describes what compiles the
+application, not what runs it.
+
+Decision: informational, with this paragraph as the reason, in the same spirit
+as the ZAP baseline note already in the workflow header. `npm audit fix --force`
+was deliberately not run: it rewrites the lockfile and can break the build in
+order to silence findings that never ship. The blocking check for what does ship
+is section 4.
+
+
+3. Container scan, backend: application layer clean, base image not
+------------------------------------------------------------------------------
+  $ trivy image --scanners vuln --ignore-unfixed geo-ads-security-platform-backend
+
+  Class        Type          Result
+  lang-pkgs    python-pkg    no findings
+  os-pkgs      debian        CRITICAL=3 HIGH=9
+
+The application layer, which is the part this repository controls, is clean.
+That is the half that gates.
+
+The three criticals are all one package:
+
+  perl-base  CVE-2026-13221  fixed in 5.40.1-6+deb13u1
+  perl-base  CVE-2026-42496  fixed in 5.40.1-6+deb13u1
+  perl-base  CVE-2026-8376   fixed in 5.40.1-6+deb13u1
+
+A fix exists in Debian and has not reached the python:3.12-slim image yet. The
+base was pulled fresh to check rather than assumed:
+
+  python:3.12-slim  created 2026-09-01  already the newest published build
+
+So there is nothing this repository can do about it today, in a package a
+FastAPI service never calls. Week 8 of the programme replaces this base with a
+distroless image, which removes perl along with the rest of the shell. Until
+then the OS layer is scanned with exit-code 0: reported on every run, not
+hidden, not silenced.
+
+
+4. Container scan, frontend: a real fix, with a before and after
+------------------------------------------------------------------------------
+Before, on the base the Dockerfile had pinned since the image was written:
+
+  nginxinc/nginx-unprivileged:1.27-alpine   CRITICAL=2 HIGH=32
+
+The cause was visible from the image metadata:
+
+  $ docker image inspect nginxinc/nginx-unprivileged:1.27-alpine --format '{{.Created}}'
+  2025-06-23
+
+Fifteen months without a rebuild. The findings were not a flaw in nginx, they
+were accumulated Alpine base packages: libxml2, musl, nghttp2, zlib. All with
+fixes available upstream. The image had gone stale by standing still.
+
+Compared the available lines rather than guessing which to move to:
+
+  tag              last built    findings
+  1.27-alpine      2025-06-23    CRITICAL=2 HIGH=32
+  1.29-alpine      2026-05-11    HIGH=35
+  stable-alpine    2026-09-14    clean
+  alpine           2026-09-14    clean
+
+Moved to stable-alpine, pinned by digest so the tag stays readable and the build
+stays reproducible:
+
+  FROM nginxinc/nginx-unprivileged:stable-alpine@sha256:adf5042a17f4ecdd200c595fa9ffd1be37efb18f89a830bd1a00e4ab4d59d42c
+
+After, rebuilt and rescanned:
+
+  geo-ads-security-platform-frontend   CLEAN
+
+And it still serves:
+
+  $ docker run --rm -d -p 127.0.0.1:3099:3000 geo-ads-security-platform-frontend
+  $ curl -s -o /dev/null -w "HTTP %{http_code}" http://127.0.0.1:3099/
+  HTTP 200
+
+2 critical and 32 high to zero, from one line, verified by rescanning rather
+than by assuming the newer tag was better. This is also the argument for the
+gate existing at all: a pinned base image is reproducible and it rots, and the
+scan is the thing that tells you when.
+
+
+5. What the pipeline looks like now
+------------------------------------------------------------------------------
+  job    name                  blocking
+  test   pytest                yes
+  deps   dependency audit      pip-audit yes, npm audit no (section 2)
+  image  container scan        backend libraries yes, backend OS no (section 3),
+                               frontend yes (section 4)
+  sast   semgrep and bandit    yes
+  dast   zap baseline          no, documented in the workflow header
+
+Trivy runs through aquasecurity/trivy-action pinned to 0.36.0. An unpinned
+action on a security scanner is a supply chain problem of its own.
+
+Every gate that is not blocking says in the workflow file why, in terms of this
+application rather than in general. A threshold lowered without a written reason
+is the start of a pipeline nobody trusts.
